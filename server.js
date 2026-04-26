@@ -44,6 +44,7 @@ app.use('/admin',     require('./routes/adminRoutes'));
 app.use('/tools',     require('./routes/toolsRoutes'));
 app.use('/ai',        require('./routes/toolsRoutes'));
 app.use('/sync',      require('./routes/syncRoutes'));
+app.use('/upload',    require('./routes/uploadRoutes'));
 
 // ── Глобальный обработчик ошибок ─────────────────────────────
 app.use((err, req, res, next) => {

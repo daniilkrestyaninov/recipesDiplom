@@ -19,22 +19,24 @@ const toolsController = {
     } catch (e) { res.status(500).json({ message: 'Ошибка', error: e.message }); }
   },
 
-  // POST /ai/generate  — генерация рецепта по продуктам (заглушка)
+  // POST /ai/generate  — генерация рецепта по продуктам через GigaChat
   generate: async (req, res) => {
     try {
       const { products } = req.body;
-      if (!products || !products.length) return res.status(400).json({ message: 'Укажите список продуктов' });
-      // TODO: подключить OpenAI / GigaChat API
+      if (!products || !products.length) {
+        return res.status(400).json({ message: 'Укажите список продуктов (массив products)' });
+      }
+
+      const geminiService = require('../services/geminiService');
+      const generatedRecipe = await geminiService.generateRecipe(products);
+
       res.json({
-        message: 'ИИ генерация пока в разработке',
-        suggestion: {
-          title: `Блюдо из ${products.join(', ')}`,
-          description: 'Автоматически сгенерированный рецепт',
-          ingredients: products.map(p => ({ name: p })),
-          steps: [{ step_number: 1, description: 'Смешайте все ингредиенты и приготовьте' }],
-        },
+        message: 'Рецепт успешно сгенерирован',
+        suggestion: generatedRecipe,
       });
-    } catch (e) { res.status(500).json({ message: 'Ошибка', error: e.message }); }
+    } catch (e) { 
+      res.status(500).json({ message: 'Ошибка генерации', error: e.message }); 
+    }
   },
 };
 
