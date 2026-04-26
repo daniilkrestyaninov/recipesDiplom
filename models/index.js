@@ -10,10 +10,17 @@ const Subscription = require('./Subscription');
 const Like = require('./Like');
 const Favorite = require('./Favorite');
 const Comment = require('./Comment');
+const RefreshToken = require('./RefreshToken');
+const PersonalNote = require('./PersonalNote');
+const CookedRecipe = require('./CookedRecipe');
 
 // ── User & Role ──────────────────────────────────────────────
 Role.hasMany(User, { foreignKey: 'role_id' });
 User.belongsTo(Role, { foreignKey: 'role_id' });
+
+// ── Refresh Tokens ───────────────────────────────────────────
+User.hasMany(RefreshToken, { foreignKey: 'user_id' });
+RefreshToken.belongsTo(User, { foreignKey: 'user_id' });
 
 // ── Subscriptions (self-referential) ─────────────────────────
 User.belongsToMany(User, {
@@ -92,6 +99,18 @@ Comment.belongsTo(Recipe, { foreignKey: 'recipe_id' });
 Comment.hasMany(Comment, { foreignKey: 'parent_comment_id', as: 'Replies' });
 Comment.belongsTo(Comment, { foreignKey: 'parent_comment_id', as: 'Parent' });
 
+// ── Personal Notes ───────────────────────────────────────────
+User.hasMany(PersonalNote, { foreignKey: 'user_id' });
+Recipe.hasMany(PersonalNote, { foreignKey: 'recipe_id' });
+PersonalNote.belongsTo(User, { foreignKey: 'user_id' });
+PersonalNote.belongsTo(Recipe, { foreignKey: 'recipe_id' });
+
+// ── Cooked Recipes ───────────────────────────────────────────
+User.hasMany(CookedRecipe, { foreignKey: 'user_id' });
+Recipe.hasMany(CookedRecipe, { foreignKey: 'recipe_id' });
+CookedRecipe.belongsTo(User, { foreignKey: 'user_id' });
+CookedRecipe.belongsTo(Recipe, { foreignKey: 'recipe_id' });
+
 module.exports = {
   sequelize,
   User,
@@ -109,4 +128,7 @@ module.exports = {
   Like,
   Favorite,
   Comment,
+  RefreshToken,
+  PersonalNote,
+  CookedRecipe,
 };

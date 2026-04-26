@@ -35,6 +35,18 @@ const User = sequelize.define('User', {
     type: DataTypes.BIGINT,
     allowNull: false,
   },
+  is_blocked: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+  },
+  password_reset_code: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  password_reset_expires: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
 }, {
   underscored: true,
 });

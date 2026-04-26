@@ -6,12 +6,11 @@ const c = require('../controllers/metaController');
  * @swagger
  * tags:
  *   name: Meta
- *   description: Справочники (категории, кухни, праздники и т.д.)
+ *   description: Справочники для фильтров и выпадающих списков
  */
 
-/**
- * @swagger
- * /categories:
+/** @swagger
+ * /meta/categories:
  *   get:
  *     summary: Список категорий
  *     tags: [Meta]
@@ -20,64 +19,46 @@ const c = require('../controllers/metaController');
  */
 router.get('/categories', c.getCategories);
 
-/**
- * @swagger
- * /national-kitchens:
+/** @swagger
+ * /meta/kitchens:
  *   get:
- *     summary: Список национальных кухонь
+ *     summary: Национальные кухни
  *     tags: [Meta]
  *     responses:
  *       200: { description: Массив кухонь }
  */
-router.get('/national-kitchens', c.getKitchens);
+router.get('/kitchens', c.getKitchens);
 
-/**
- * @swagger
- * /celebrations:
+/** @swagger
+ * /meta/cooking-types:
  *   get:
- *     summary: Список праздников
+ *     summary: Способы приготовления
+ *     tags: [Meta]
+ *     responses:
+ *       200: { description: Массив типов готовки }
+ */
+router.get('/cooking-types', c.getTypeCooking);
+
+/** @swagger
+ * /meta/celebrations:
+ *   get:
+ *     summary: Праздничные события
  *     tags: [Meta]
  *     responses:
  *       200: { description: Массив праздников }
  */
 router.get('/celebrations', c.getCelebrations);
 
-/**
- * @swagger
- * /type-cooking:
+/** @swagger
+ * /meta/ingredients:
  *   get:
- *     summary: Список способов приготовления
- *     tags: [Meta]
- *     responses:
- *       200: { description: Массив типов готовки }
- */
-router.get('/type-cooking', c.getTypeCooking);
-
-/**
- * @swagger
- * /ingredients:
- *   get:
- *     summary: Список ингредиентов (с поиском)
+ *     summary: Поиск ингредиентов
  *     tags: [Meta]
  *     parameters:
- *       - in: query
- *         name: search
- *         schema: { type: string }
- *         description: Поиск по названию
+ *       - { in: query, name: search, schema: { type: string }, description: Поиск по названию }
  *     responses:
  *       200: { description: Массив ингредиентов }
  */
 router.get('/ingredients', c.getIngredients);
-
-/**
- * @swagger
- * /roles:
- *   get:
- *     summary: Список ролей
- *     tags: [Meta]
- *     responses:
- *       200: { description: Массив ролей }
- */
-router.get('/roles', c.getRoles);
 
 module.exports = router;

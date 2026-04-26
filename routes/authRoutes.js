@@ -1,20 +1,19 @@
 const express = require('express');
 const router = express.Router();
-const c = require('../controllers/userController');
-const auth = require('../middleware/authMiddleware');
+const c = require('../controllers/authController');
 
 /**
  * @swagger
  * tags:
  *   name: Auth
- *   description: Регистрация и вход
+ *   description: Авторизация и доступ
  */
 
 /**
  * @swagger
  * /auth/register:
  *   post:
- *     summary: Регистрация нового пользователя
+ *     summary: Регистрация
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -24,13 +23,13 @@ const auth = require('../middleware/authMiddleware');
  *             type: object
  *             required: [username, name, email, password]
  *             properties:
- *               username: { type: string, example: "chef_ivan" }
- *               name: { type: string, example: "Иван Петров" }
- *               email: { type: string, example: "ivan@mail.ru" }
- *               password: { type: string, example: "secret123" }
+ *               username: { type: string }
+ *               name: { type: string }
+ *               email: { type: string }
+ *               password: { type: string }
+ *               avatar_url: { type: string }
  *     responses:
  *       201: { description: Пользователь создан }
- *       400: { description: Пользователь уже существует }
  */
 router.post('/register', c.register);
 
@@ -38,7 +37,7 @@ router.post('/register', c.register);
  * @swagger
  * /auth/login:
  *   post:
- *     summary: Вход в систему (получение JWT)
+ *     summary: Вход (получение access + refresh токенов)
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -48,12 +47,91 @@ router.post('/register', c.register);
  *             type: object
  *             required: [email, password]
  *             properties:
- *               email: { type: string, example: "ivan@mail.ru" }
- *               password: { type: string, example: "secret123" }
+ *               email: { type: string }
+ *               password: { type: string }
  *     responses:
- *       200: { description: JWT токен }
- *       401: { description: Неверный пароль }
+ *       200: { description: Токены и данные пользователя }
  */
 router.post('/login', c.login);
+
+/**
+ * @swagger
+ * /auth/refresh:
+ *   post:
+ *     summary: Обновление access-токена по refresh-токену
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [refresh_token]
+ *             properties:
+ *               refresh_token: { type: string }
+ *     responses:
+ *       200: { description: Новая пара токенов }
+ */
+router.post('/refresh', c.refresh);
+
+/**
+ * @swagger
+ * /auth/logout:
+ *   post:
+ *     summary: Выход (отзыв refresh-токена)
+ *     tags: [Auth]
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               refresh_token: { type: string }
+ *     responses:
+ *       200: { description: Выход выполнен }
+ */
+router.post('/logout', c.logout);
+
+/**
+ * @swagger
+ * /auth/password-recovery:
+ *   post:
+ *     summary: Запрос на восстановление пароля
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email: { type: string }
+ *     responses:
+ *       200: { description: Код отправлен }
+ */
+router.post('/password-recovery', c.passwordRecovery);
+
+/**
+ * @swagger
+ * /auth/reset-password:
+ *   post:
+ *     summary: Установка нового пароля по коду
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, code, new_password]
+ *             properties:
+ *               email: { type: string }
+ *               code: { type: string }
+ *               new_password: { type: string }
+ *     responses:
+ *       200: { description: Пароль изменён }
+ */
+router.post('/reset-password', c.resetPassword);
 
 module.exports = router;
