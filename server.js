@@ -1,27 +1,21 @@
 const express = require('express');
 const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
-const path = require('path');
 require('dotenv').config();
 
 const app = express();
 app.use(express.json());
 
-// Настройка Swagger
+// ── Swagger ──────────────────────────────────────────────────
 const swaggerOptions = {
   definition: {
     openapi: '3.0.0',
     info: {
       title: 'Recipes API',
       version: '1.0.0',
-      description: 'API для проекта "Рецепты" с авторизацией и CRUD операциями',
+      description: 'Полный API для проекта "Вкусно" с авторизацией, рецептами и социальными функциями',
     },
-    servers: [
-      {
-        url: '/',
-        description: 'Current server (Internet/Local)',
-      },
-    ],
+    servers: [{ url: '/', description: 'Текущий сервер' }],
     components: {
       securitySchemes: {
         bearerAuth: {
@@ -31,35 +25,34 @@ const swaggerOptions = {
         },
       },
     },
-    security: [
-      {
-        bearerAuth: [],
-      },
-    ],
+    security: [{ bearerAuth: [] }],
   },
-  apis: ['./server.js', './routes/*.js'],
+  apis: ['./routes/*.js'],
 };
 
 const swaggerDocs = swaggerJsdoc(swaggerOptions);
-
-// Настройка Swagger UI
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs, {
   explorer: true,
-  swaggerOptions: {
-    persistAuthorization: true,
-  }
+  swaggerOptions: { persistAuthorization: true },
 }));
 
-// Импорт роутов
-const recipeRoutes = require('./routes/recipeRoutes');
-const userRoutes = require('./routes/userRoutes');
+// ── Роуты ────────────────────────────────────────────────────
+app.use('/auth',          require('./routes/authRoutes'));
+app.use('/users',         require('./routes/userRoutes'));
+app.use('/recipes',       require('./routes/recipeRoutes'));
+app.use('/comments',      require('./routes/commentRoutes'));
+app.use('/favorites',     require('./routes/favoriteRoutes'));
+app.use('/',              require('./routes/metaRoutes'));   // /categories, /national-kitchens, etc.
 
-app.use('/api/recipes', recipeRoutes);
-app.use('/api/users', userRoutes);
+// ── Глобальный обработчик ошибок ─────────────────────────────
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ message: 'Внутренняя ошибка сервера', error: err.message });
+});
 
+// ── Запуск ───────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
-
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`Swagger UI is available at http://localhost:${PORT}/api-docs`);
+  console.log(`✅  Сервер запущен: http://localhost:${PORT}`);
+  console.log(`📚  Swagger UI:     http://localhost:${PORT}/api-docs`);
 });

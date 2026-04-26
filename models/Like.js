@@ -1,28 +1,23 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
-const Subscription = sequelize.define('Subscription', {
+const Like = sequelize.define('Like', {
   id: {
     type: DataTypes.BIGINT,
     primaryKey: true,
     autoIncrement: true,
   },
-  follower_id: {
+  user_id: {
     type: DataTypes.BIGINT,
     allowNull: false,
   },
-  following_id: {
+  recipe_id: {
     type: DataTypes.BIGINT,
     allowNull: false,
-  },
-  subscribed_at: {
-    type: DataTypes.DATE,
-    allowNull: false,
-    defaultValue: DataTypes.NOW,
   },
 }, {
-  timestamps: false,
   underscored: true,
+  tableName: 'likes',
 });
 
-module.exports = Subscription;
+module.exports = Like;

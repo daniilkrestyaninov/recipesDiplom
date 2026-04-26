@@ -1,120 +1,199 @@
-const { Recipe, User, Ingredient, RecipeIngredient, Step, NationalKitchen, Category, Celebration, TypeCooking } = require('../models');
+const { Recipe, User, Ingredient, RecipeIngredient, RecipeCategory,
+  Step, NationalKitchen, Category, Celebration, TypeCooking, Like, Subscription } = require('../models');
+const { Op } = require('sequelize');
+
+// Стандартный include для полной карточки рецепта
+const fullRecipeInclude = [
+  { model: User, attributes: ['id', 'username', 'name', 'avatar_url'] },
+  { model: Ingredient, as: 'Ingredients', through: { attributes: ['quantity', 'note'] } },
+  { model: Step, as: 'Steps', order: [['step_number', 'ASC']] },
+  { model: NationalKitchen, as: 'Kitchen' },
+  { model: Celebration, as: 'Celebration' },
+  { model: TypeCooking, as: 'TypeCooking' },
+  { model: Category, as: 'Categories' },
+  { model: Like, as: 'Likes', attributes: ['user_id'] },
+];
 
 const recipeController = {
-  // Получить все рецепты
-  getAllRecipes: async (req, res) => {
+  // GET /recipes
+  getAll: async (req, res) => {
     try {
+      const { kitchen_id, celebration_id, cooking_id, difficulty, is_private } = req.query;
+      const where = {};
+      if (kitchen_id) where.kitchen_id = kitchen_id;
+      if (celebration_id) where.celebration_id = celebration_id;
+      if (cooking_id) where.cooking_id = cooking_id;
+      if (difficulty) where.difficulty = difficulty;
+      if (is_private !== undefined) where.is_private = is_private === 'true';
+
       const recipes = await Recipe.findAll({
+        where,
         include: [
-          { model: User, attributes: ['id', 'username', 'name'] },
-          { model: NationalKitchen, attributes: ['name'] }
-        ]
+          { model: User, attributes: ['id', 'username', 'name', 'avatar_url'] },
+          { model: NationalKitchen, as: 'Kitchen' },
+          { model: Category, as: 'Categories' },
+          { model: Like, as: 'Likes', attributes: ['user_id'] },
+        ],
+        order: [['created_at', 'DESC']],
       });
       res.json(recipes);
-    } catch (error) {
-      res.status(500).json({ message: 'Ошибка при получении рецептов', error: error.message });
+    } catch (err) {
+      res.status(500).json({ message: 'Ошибка при получении рецептов', error: err.message });
     }
   },
 
-  // Получить один рецепт по ID
-  getRecipeById: async (req, res) => {
+  // GET /recipes/feed
+  getFeed: async (req, res) => {
     try {
-      const recipe = await Recipe.findByPk(req.params.id, {
-        include: [
-          { model: User, attributes: ['id', 'username', 'name'] },
-          { model: Ingredient, through: { attributes: ['quantity', 'note'] } },
-          { model: Step },
-          { model: NationalKitchen },
-          { model: Celebration },
-          { model: TypeCooking }
-        ]
+      // IDs пользователей, на которых текущий пользователь подписан
+      const subscriptions = await Subscription.findAll({
+        where: { follower_id: req.user.id },
+        attributes: ['following_id'],
       });
+      const followingIds = subscriptions.map((s) => s.following_id);
 
-      if (!recipe) {
-        return res.status(404).json({ message: 'Рецепт не найден' });
+      if (followingIds.length === 0) {
+        return res.json([]);
       }
 
-      res.json(recipe);
-    } catch (error) {
-      res.status(500).json({ message: 'Ошибка при получении рецепта', error: error.message });
+      const recipes = await Recipe.findAll({
+        where: { user_id: { [Op.in]: followingIds }, is_private: false },
+        include: [
+          { model: User, attributes: ['id', 'username', 'name', 'avatar_url'] },
+          { model: Like, as: 'Likes', attributes: ['user_id'] },
+        ],
+        order: [['created_at', 'DESC']],
+      });
+      res.json(recipes);
+    } catch (err) {
+      res.status(500).json({ message: 'Ошибка при получении ленты', error: err.message });
     }
   },
 
-  // Создать новый рецепт
-  createRecipe: async (req, res) => {
+  // GET /recipes/:id
+  getById: async (req, res) => {
     try {
-      const { 
-        title, description, difficulty, image_url, is_private, 
-        kitchen_id, celebration_id, cooking_id, portion, calorific, 
-        cooking_time, ingredients, steps 
+      const recipe = await Recipe.findByPk(req.params.id, { include: fullRecipeInclude });
+      if (!recipe) return res.status(404).json({ message: 'Рецепт не найден' });
+      res.json(recipe);
+    } catch (err) {
+      res.status(500).json({ message: 'Ошибка', error: err.message });
+    }
+  },
+
+  // POST /recipes
+  create: async (req, res) => {
+    try {
+      const {
+        title, description, difficulty, image_url, is_private,
+        kitchen_id, celebration_id, cooking_id, portion, calorific,
+        cooking_time, ingredients = [], steps = [], categories = [],
       } = req.body;
 
-      // Получаем id из JWT токена (req.user заполняется в authMiddleware)
-      const user_id = req.user.id;
-
       const recipe = await Recipe.create({
-        user_id, title, description, difficulty, image_url, is_private,
-        kitchen_id, celebration_id, cooking_id, portion, calorific, cooking_time
+        user_id: req.user.id,
+        title, description, difficulty, image_url,
+        is_private: is_private || false,
+        kitchen_id, celebration_id, cooking_id,
+        portion, calorific, cooking_time,
       });
 
-      // Добавление ингредиентов
-      if (ingredients && ingredients.length > 0) {
-        for (const ing of ingredients) {
-          await RecipeIngredient.create({
+      // Ингредиенты
+      if (ingredients.length > 0) {
+        await RecipeIngredient.bulkCreate(
+          ingredients.map((i) => ({
             recipe_id: recipe.id,
-            ingredient_id: ing.id,
-            quantity: ing.quantity,
-            note: ing.note
-          });
-        }
+            ingredient_id: i.id,
+            quantity: i.quantity,
+            note: i.note,
+          }))
+        );
       }
 
-      // Добавление шагов
-      if (steps && steps.length > 0) {
-        const stepsData = steps.map((step, index) => ({
-          recipe_id: recipe.id,
-          step_number: index + 1,
-          description: step.description,
-          image_url: step.image_url
-        }));
-        await Step.bulkCreate(stepsData);
+      // Шаги
+      if (steps.length > 0) {
+        await Step.bulkCreate(
+          steps.map((s, idx) => ({
+            recipe_id: recipe.id,
+            step_number: s.step_number || idx + 1,
+            description: s.description,
+            image_url: s.image_url,
+          }))
+        );
       }
 
-      res.status(201).json(recipe);
-    } catch (error) {
-      res.status(500).json({ message: 'Ошибка при создании рецепта', error: error.message });
+      // Категории
+      if (categories.length > 0) {
+        await RecipeCategory.bulkCreate(
+          categories.map((catId) => ({ recipe_id: recipe.id, category_id: catId }))
+        );
+      }
+
+      const full = await Recipe.findByPk(recipe.id, { include: fullRecipeInclude });
+      res.status(201).json(full);
+    } catch (err) {
+      res.status(500).json({ message: 'Ошибка при создании', error: err.message });
     }
   },
 
-  // Обновить рецепт
-  updateRecipe: async (req, res) => {
+  // PUT /recipes/:id
+  update: async (req, res) => {
     try {
       const recipe = await Recipe.findByPk(req.params.id);
-      if (!recipe) {
-        return res.status(404).json({ message: 'Рецепт не найден' });
+      if (!recipe) return res.status(404).json({ message: 'Рецепт не найден' });
+      if (recipe.user_id !== req.user.id && req.user.role !== 'Admin') {
+        return res.status(403).json({ message: 'Нет прав для редактирования' });
       }
-
       await recipe.update(req.body);
-      res.json({ message: 'Рецепт обновлен', recipe });
-    } catch (error) {
-      res.status(500).json({ message: 'Ошибка при обновлении рецепта', error: error.message });
+      const full = await Recipe.findByPk(recipe.id, { include: fullRecipeInclude });
+      res.json(full);
+    } catch (err) {
+      res.status(500).json({ message: 'Ошибка обновления', error: err.message });
     }
   },
 
-  // Удалить рецепт
-  deleteRecipe: async (req, res) => {
+  // DELETE /recipes/:id
+  delete: async (req, res) => {
     try {
       const recipe = await Recipe.findByPk(req.params.id);
-      if (!recipe) {
-        return res.status(404).json({ message: 'Рецепт не найден' });
+      if (!recipe) return res.status(404).json({ message: 'Рецепт не найден' });
+      if (recipe.user_id !== req.user.id && req.user.role !== 'Admin') {
+        return res.status(403).json({ message: 'Нет прав для удаления' });
       }
-
       await recipe.destroy();
       res.json({ message: 'Рецепт удален' });
-    } catch (error) {
-      res.status(500).json({ message: 'Ошибка при удалении рецепта', error: error.message });
+    } catch (err) {
+      res.status(500).json({ message: 'Ошибка удаления', error: err.message });
     }
-  }
+  },
+
+  // PATCH /recipes/:id/steps/:step_id
+  updateStep: async (req, res) => {
+    try {
+      const step = await Step.findOne({
+        where: { id: req.params.step_id, recipe_id: req.params.id },
+      });
+      if (!step) return res.status(404).json({ message: 'Шаг не найден' });
+      await step.update(req.body);
+      res.json(step);
+    } catch (err) {
+      res.status(500).json({ message: 'Ошибка обновления шага', error: err.message });
+    }
+  },
+
+  // DELETE /recipes/:id/ingredients/:ing_id
+  removeIngredient: async (req, res) => {
+    try {
+      const row = await RecipeIngredient.findOne({
+        where: { recipe_id: req.params.id, ingredient_id: req.params.ing_id },
+      });
+      if (!row) return res.status(404).json({ message: 'Ингредиент не найден в рецепте' });
+      await row.destroy();
+      res.json({ message: 'Ингредиент удален из рецепта' });
+    } catch (err) {
+      res.status(500).json({ message: 'Ошибка удаления ингредиента', error: err.message });
+    }
+  },
 };
 
 module.exports = recipeController;

@@ -1,28 +1,36 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
-const Subscription = sequelize.define('Subscription', {
+const Comment = sequelize.define('Comment', {
   id: {
     type: DataTypes.BIGINT,
     primaryKey: true,
     autoIncrement: true,
   },
-  follower_id: {
+  user_id: {
     type: DataTypes.BIGINT,
     allowNull: false,
   },
-  following_id: {
+  recipe_id: {
     type: DataTypes.BIGINT,
     allowNull: false,
   },
-  subscribed_at: {
-    type: DataTypes.DATE,
+  content: {
+    type: DataTypes.TEXT,
     allowNull: false,
-    defaultValue: DataTypes.NOW,
+  },
+  rating: {
+    type: DataTypes.SMALLINT,
+    allowNull: false,
+    validate: { min: 1, max: 5 },
+  },
+  parent_comment_id: {
+    type: DataTypes.BIGINT,
+    allowNull: true,
   },
 }, {
-  timestamps: false,
   underscored: true,
+  tableName: 'comments',
 });
 
-module.exports = Subscription;
+module.exports = Comment;
