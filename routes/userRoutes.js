@@ -11,11 +11,10 @@ const auth = require('../middleware/authMiddleware');
  *   description: Профили пользователей
  */
 
-/**
- * @swagger
+/** @swagger
  * /users/me:
  *   get:
- *     summary: Получить свой профиль
+ *     summary: Мой профиль
  *     tags: [Users]
  *     security: [{ bearerAuth: [] }]
  *     responses:
@@ -23,11 +22,10 @@ const auth = require('../middleware/authMiddleware');
  */
 router.get('/me', auth, c.getMe);
 
-/**
- * @swagger
+/** @swagger
  * /users/me:
  *   patch:
- *     summary: Обновить свой профиль
+ *     summary: Обновить профиль (name, bio, avatar_url, email)
  *     tags: [Users]
  *     security: [{ bearerAuth: [] }]
  *     requestBody:
@@ -41,15 +39,25 @@ router.get('/me', auth, c.getMe);
  *               avatar_url: { type: string }
  *               email: { type: string }
  *     responses:
- *       200: { description: Обновленный профиль }
+ *       200: { description: Обновлённый профиль }
  */
 router.patch('/me', auth, c.updateMe);
 
-/**
- * @swagger
+/** @swagger
+ * /users/me:
+ *   delete:
+ *     summary: Удалить свой аккаунт
+ *     tags: [Users]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Аккаунт удалён }
+ */
+router.delete('/me', auth, c.deleteMe);
+
+/** @swagger
  * /users/{id}:
  *   get:
- *     summary: Публичный профиль пользователя
+ *     summary: Публичный профиль (с рецептами и статистикой)
  *     tags: [Users]
  *     parameters:
  *       - in: path
@@ -57,14 +65,12 @@ router.patch('/me', auth, c.updateMe);
  *         required: true
  *         schema: { type: integer }
  *     responses:
- *       200: { description: Данные пользователя }
- *       404: { description: Не найден }
+ *       200: { description: Профиль пользователя }
  */
 router.get('/:id', c.getUserById);
 
-/**
- * @swagger
- * /users/{id}/subscribe:
+/** @swagger
+ * /users/{id}/follow:
  *   post:
  *     summary: Подписаться на пользователя
  *     tags: [Users]
@@ -77,13 +83,12 @@ router.get('/:id', c.getUserById);
  *     responses:
  *       201: { description: Подписка оформлена }
  */
-router.post('/:id/subscribe', auth, social.subscribe);
+router.post('/:id/follow', auth, social.follow);
 
-/**
- * @swagger
- * /users/{id}/subscribe:
+/** @swagger
+ * /users/{id}/follow:
  *   delete:
- *     summary: Отписаться от пользователя
+ *     summary: Отписаться
  *     tags: [Users]
  *     security: [{ bearerAuth: [] }]
  *     parameters:
@@ -94,13 +99,12 @@ router.post('/:id/subscribe', auth, social.subscribe);
  *     responses:
  *       200: { description: Отписка выполнена }
  */
-router.delete('/:id/subscribe', auth, social.unsubscribe);
+router.delete('/:id/follow', auth, social.unfollow);
 
-/**
- * @swagger
+/** @swagger
  * /users/{id}/followers:
  *   get:
- *     summary: Список подписчиков пользователя
+ *     summary: Подписчики пользователя
  *     tags: [Users]
  *     parameters:
  *       - in: path
@@ -112,8 +116,7 @@ router.delete('/:id/subscribe', auth, social.unsubscribe);
  */
 router.get('/:id/followers', social.getFollowers);
 
-/**
- * @swagger
+/** @swagger
  * /users/{id}/following:
  *   get:
  *     summary: На кого подписан пользователь

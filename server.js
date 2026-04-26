@@ -1,6 +1,7 @@
 const express = require('express');
 const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
+const { sequelize } = require('./models');
 require('dotenv').config();
 
 const app = express();
@@ -11,18 +12,14 @@ const swaggerOptions = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'Recipes API',
-      version: '1.0.0',
-      description: 'Полный API для проекта "Вкусно" с авторизацией, рецептами и социальными функциями',
+      title: 'Vkusno API',
+      version: '2.0.0',
+      description: 'Полный API проекта "Вкусно" — рецепты, социалка, модерация, синхронизация',
     },
     servers: [{ url: '/', description: 'Текущий сервер' }],
     components: {
       securitySchemes: {
-        bearerAuth: {
-          type: 'http',
-          scheme: 'bearer',
-          bearerFormat: 'JWT',
-        },
+        bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
       },
     },
     security: [{ bearerAuth: [] }],
@@ -37,12 +34,16 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs, {
 }));
 
 // ── Роуты ────────────────────────────────────────────────────
-app.use('/auth',          require('./routes/authRoutes'));
-app.use('/users',         require('./routes/userRoutes'));
-app.use('/recipes',       require('./routes/recipeRoutes'));
-app.use('/comments',      require('./routes/commentRoutes'));
-app.use('/favorites',     require('./routes/favoriteRoutes'));
-app.use('/',              require('./routes/metaRoutes'));   // /categories, /national-kitchens, etc.
+app.use('/auth',      require('./routes/authRoutes'));
+app.use('/users',     require('./routes/userRoutes'));
+app.use('/recipes',   require('./routes/recipeRoutes'));
+app.use('/comments',  require('./routes/commentRoutes'));
+app.use('/favorites', require('./routes/favoriteRoutes'));
+app.use('/meta',      require('./routes/metaRoutes'));
+app.use('/admin',     require('./routes/adminRoutes'));
+app.use('/tools',     require('./routes/toolsRoutes'));
+app.use('/ai',        require('./routes/toolsRoutes'));
+app.use('/sync',      require('./routes/syncRoutes'));
 
 // ── Глобальный обработчик ошибок ─────────────────────────────
 app.use((err, req, res, next) => {
@@ -50,9 +51,14 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Внутренняя ошибка сервера', error: err.message });
 });
 
-// ── Запуск ───────────────────────────────────────────────────
+// ── Запуск + авто-создание новых таблиц ──────────────────────
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`✅  Сервер запущен: http://localhost:${PORT}`);
-  console.log(`📚  Swagger UI:     http://localhost:${PORT}/api-docs`);
+
+sequelize.sync({ alter: false }).then(() => {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`\n  Сервер запущен: http://localhost:${PORT}`);
+    console.log(`  Swagger UI:     http://localhost:${PORT}/api-docs\n`);
+  });
+}).catch(err => {
+  console.error('Ошибка подключения к БД:', err.message);
 });

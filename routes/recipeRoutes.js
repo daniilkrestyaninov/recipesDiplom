@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const c = require('../controllers/recipeController');
+const rc = require('../controllers/recipeController');
 const social = require('../controllers/socialController');
 const comment = require('../controllers/commentController');
 const auth = require('../middleware/authMiddleware');
@@ -9,67 +9,61 @@ const auth = require('../middleware/authMiddleware');
  * @swagger
  * tags:
  *   name: Recipes
- *   description: Управление рецептами
+ *   description: Рецепты
  */
 
-/**
- * @swagger
+/** @swagger
  * /recipes:
  *   get:
- *     summary: Список всех рецептов
+ *     summary: Глобальная лента рецептов (с фильтрами и поиском)
  *     tags: [Recipes]
  *     parameters:
- *       - in: query
- *         name: kitchen_id
- *         schema: { type: integer }
- *       - in: query
- *         name: celebration_id
- *         schema: { type: integer }
- *       - in: query
- *         name: cooking_id
- *         schema: { type: integer }
- *       - in: query
- *         name: difficulty
- *         schema: { type: string, enum: ['1','2','3','4','5'] }
- *       - in: query
- *         name: is_private
- *         schema: { type: boolean }
+ *       - { in: query, name: search, schema: { type: string }, description: Поиск по названию/описанию }
+ *       - { in: query, name: kitchen_id, schema: { type: integer } }
+ *       - { in: query, name: celebration_id, schema: { type: integer } }
+ *       - { in: query, name: cooking_id, schema: { type: integer } }
+ *       - { in: query, name: category_id, schema: { type: integer } }
+ *       - { in: query, name: difficulty, schema: { type: string } }
+ *       - { in: query, name: is_private, schema: { type: boolean } }
  *     responses:
  *       200: { description: Список рецептов }
  */
-router.get('/', c.getAll);
+router.get('/', rc.getAll);
 
-/**
- * @swagger
+/** @swagger
  * /recipes/feed:
  *   get:
- *     summary: Лента рецептов от авторов, на которых вы подписаны
+ *     summary: Лента по подпискам
  *     tags: [Recipes]
  *     security: [{ bearerAuth: [] }]
  *     responses:
- *       200: { description: Рецепты из ленты }
+ *       200: { description: Рецепты от подписок }
  */
-router.get('/feed', auth, c.getFeed);
+router.get('/feed', auth, rc.getFeed);
 
-/**
- * @swagger
+/** @swagger
+ * /recipes/random:
+ *   get:
+ *     summary: Случайный рецепт
+ *     tags: [Recipes]
+ *     responses:
+ *       200: { description: Случайный рецепт }
+ */
+router.get('/random', rc.getRandom);
+
+/** @swagger
  * /recipes/{id}:
  *   get:
  *     summary: Полная карточка рецепта
  *     tags: [Recipes]
  *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: integer }
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
  *     responses:
- *       200: { description: Данные рецепта со шагами, ингредиентами и категориями }
- *       404: { description: Не найден }
+ *       200: { description: Рецепт с ингредиентами, шагами и фото }
  */
-router.get('/:id', c.getById);
+router.get('/:id', rc.getById);
 
-/**
- * @swagger
+/** @swagger
  * /recipes:
  *   post:
  *     summary: Создать рецепт
@@ -85,144 +79,157 @@ router.get('/:id', c.getById);
  *             properties:
  *               title: { type: string }
  *               description: { type: string }
- *               difficulty: { type: string, enum: ['1','2','3','4','5'] }
+ *               difficulty: { type: string }
  *               portion: { type: integer }
- *               calorific: { type: integer }
  *               cooking_time: { type: integer }
- *               kitchen_id: { type: integer }
- *               celebration_id: { type: integer }
- *               cooking_id: { type: integer }
  *               is_private: { type: boolean }
- *               categories: { type: array, items: { type: integer }, description: "Массив ID категорий" }
- *               ingredients:
- *                 type: array
- *                 items:
- *                   type: object
- *                   properties:
- *                     id: { type: integer }
- *                     quantity: { type: integer }
- *                     note: { type: string }
- *               steps:
- *                 type: array
- *                 items:
- *                   type: object
- *                   properties:
- *                     step_number: { type: integer }
- *                     description: { type: string }
- *                     image_url: { type: string }
+ *               categories: { type: array, items: { type: integer } }
+ *               ingredients: { type: array, items: { type: object, properties: { id: { type: integer }, quantity: { type: integer }, note: { type: string } } } }
+ *               steps: { type: array, items: { type: object, properties: { description: { type: string }, image_url: { type: string } } } }
  *     responses:
  *       201: { description: Рецепт создан }
  */
-router.post('/', auth, c.create);
+router.post('/', auth, rc.create);
 
-/**
- * @swagger
+/** @swagger
  * /recipes/{id}:
  *   put:
- *     summary: Обновить рецепт (только владелец или admin)
+ *     summary: Редактировать рецепт (только автор)
  *     tags: [Recipes]
  *     security: [{ bearerAuth: [] }]
  *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: integer }
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
  *     responses:
- *       200: { description: Рецепт обновлен }
- *       403: { description: Нет прав }
+ *       200: { description: Рецепт обновлён }
  */
-router.put('/:id', auth, c.update);
+router.put('/:id', auth, rc.update);
 
-/**
- * @swagger
+/** @swagger
  * /recipes/{id}:
  *   delete:
- *     summary: Удалить рецепт (только владелец или admin)
+ *     summary: Удалить рецепт (каскадно)
  *     tags: [Recipes]
  *     security: [{ bearerAuth: [] }]
  *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: integer }
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
  *     responses:
- *       200: { description: Рецепт удален }
+ *       200: { description: Рецепт удалён }
  */
-router.delete('/:id', auth, c.delete);
+router.delete('/:id', auth, rc.delete);
 
-/**
- * @swagger
+/** @swagger
+ * /recipes/{id}/personal-note:
+ *   patch:
+ *     summary: Создать или обновить личную заметку к рецепту
+ *     tags: [Recipes]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [note]
+ *             properties:
+ *               note: { type: string }
+ *     responses:
+ *       200: { description: Заметка сохранена }
+ */
+router.patch('/:id/personal-note', auth, rc.upsertPersonalNote);
+
+/** @swagger
+ * /recipes/{id}/export:
+ *   get:
+ *     summary: Экспорт списка продуктов (text/plain)
+ *     tags: [Recipes]
+ *     parameters:
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
+ *     responses:
+ *       200: { description: Текстовый список продуктов }
+ */
+router.get('/:id/export', rc.exportIngredients);
+
+/** @swagger
+ * /recipes/{id}/cooked:
+ *   post:
+ *     summary: Отметить "Приготовлено"
+ *     tags: [Recipes]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
+ *     responses:
+ *       201: { description: Отмечено }
+ */
+router.post('/:id/cooked', auth, rc.markCooked);
+
+// ── Шаги и ингредиенты ──────────────────────────────
+
+/** @swagger
  * /recipes/{id}/steps/{step_id}:
  *   patch:
  *     summary: Редактировать шаг рецепта
  *     tags: [Recipes]
  *     security: [{ bearerAuth: [] }]
  *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: integer }
- *       - in: path
- *         name: step_id
- *         required: true
- *         schema: { type: integer }
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
+ *       - { in: path, name: step_id, required: true, schema: { type: integer } }
  *     responses:
- *       200: { description: Шаг обновлен }
+ *       200: { description: Шаг обновлён }
  */
-router.patch('/:id/steps/:step_id', auth, c.updateStep);
+router.patch('/:id/steps/:step_id', auth, rc.updateStep);
 
-/**
- * @swagger
+/** @swagger
  * /recipes/{id}/ingredients/{ing_id}:
  *   delete:
  *     summary: Удалить ингредиент из рецепта
  *     tags: [Recipes]
  *     security: [{ bearerAuth: [] }]
  *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: integer }
- *       - in: path
- *         name: ing_id
- *         required: true
- *         schema: { type: integer }
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
+ *       - { in: path, name: ing_id, required: true, schema: { type: integer } }
  *     responses:
- *       200: { description: Ингредиент удален }
+ *       200: { description: Ингредиент удалён }
  */
-router.delete('/:id/ingredients/:ing_id', auth, c.removeIngredient);
+router.delete('/:id/ingredients/:ing_id', auth, rc.removeIngredient);
 
-// ── Социальные действия с рецептом ──────────────────────────
+// ── Лайки, избранное, комментарии ────────────────────
 
-/**
- * @swagger
+/** @swagger
  * /recipes/{id}/like:
  *   post:
- *     summary: Лайк / убрать лайк (toggle)
- *     tags: [Recipes]
+ *     summary: Поставить лайк
+ *     tags: [Social]
  *     security: [{ bearerAuth: [] }]
  *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: integer }
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
  *     responses:
- *       200: { description: Статус лайка }
+ *       201: { description: Лайк добавлен }
  */
-router.post('/:id/like', auth, social.toggleLike);
+router.post('/:id/like', auth, social.like);
 
-/**
- * @swagger
+/** @swagger
+ * /recipes/{id}/like:
+ *   delete:
+ *     summary: Убрать лайк
+ *     tags: [Social]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
+ *     responses:
+ *       200: { description: Лайк убран }
+ */
+router.delete('/:id/like', auth, social.unlike);
+
+/** @swagger
  * /recipes/{id}/favorite:
  *   post:
- *     summary: Добавить рецепт в избранное
- *     tags: [Recipes]
+ *     summary: Добавить в избранное
+ *     tags: [Social]
  *     security: [{ bearerAuth: [] }]
  *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: integer }
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
  *     requestBody:
  *       content:
  *         application/json:
@@ -231,41 +238,57 @@ router.post('/:id/like', auth, social.toggleLike);
  *             properties:
  *               is_downloaded: { type: boolean }
  *     responses:
- *       201: { description: Добавлено в избранное }
+ *       201: { description: Добавлено }
  */
 router.post('/:id/favorite', auth, social.addFavorite);
 
-/**
- * @swagger
+/** @swagger
  * /recipes/{id}/favorite:
  *   delete:
- *     summary: Удалить рецепт из избранного
- *     tags: [Recipes]
+ *     summary: Удалить из избранного
+ *     tags: [Social]
  *     security: [{ bearerAuth: [] }]
  *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: integer }
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
  *     responses:
- *       200: { description: Удалено из избранного }
+ *       200: { description: Удалено }
  */
 router.delete('/:id/favorite', auth, social.removeFavorite);
 
-/**
- * @swagger
+/** @swagger
  * /recipes/{id}/comments:
  *   get:
- *     summary: Получить комментарии к рецепту
- *     tags: [Recipes]
+ *     summary: Комментарии к рецепту
+ *     tags: [Social]
  *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: integer }
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
  *     responses:
- *       200: { description: Список комментариев с ответами }
+ *       200: { description: Список комментариев }
  */
 router.get('/:id/comments', comment.getByRecipe);
+
+/** @swagger
+ * /recipes/{id}/comments:
+ *   post:
+ *     summary: Оставить отзыв с рейтингом
+ *     tags: [Social]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [content, rating]
+ *             properties:
+ *               content: { type: string }
+ *               rating: { type: integer, minimum: 1, maximum: 5 }
+ *               parent_comment_id: { type: integer }
+ *     responses:
+ *       201: { description: Комментарий добавлен }
+ */
+router.post('/:id/comments', auth, comment.createForRecipe);
 
 module.exports = router;
