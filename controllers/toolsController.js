@@ -6,15 +6,12 @@ const toolsController = {
     try {
       const { url } = req.body;
       if (!url) return res.status(400).json({ message: 'URL обязателен' });
-      // TODO: подключить реальный парсер (cheerio/puppeteer)
+      const parserService = require('../services/parserService');
+      const parsedRecipe = await parserService.parseUrl(url);
+
       res.json({
-        message: 'Парсер пока в разработке',
-        parsed: {
-          title: 'Пример рецепта',
-          description: 'Описание с сайта ' + url,
-          ingredients: [],
-          steps: [],
-        },
+        message: 'Рецепт успешно распарсен',
+        parsed: parsedRecipe,
       });
     } catch (e) { res.status(500).json({ message: 'Ошибка', error: e.message }); }
   },
