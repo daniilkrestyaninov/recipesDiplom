@@ -63,7 +63,7 @@ app.use((err, req, res, next) => {
 // Синхронизация с БД PostgreSQL [cite: 48, 221]
 const PORT = process.env.PORT || 5000;
 
-sequelize.sync({ alter: false }).then(() => {
+sequelize.sync({ alter: true }).then(() => {
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n  🚀 Сервер запущен: http://localhost:${PORT}`);
     console.log(`  📖 Swagger UI:     http://localhost:${PORT}/api-docs\n`);
