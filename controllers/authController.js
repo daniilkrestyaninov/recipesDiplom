@@ -2,6 +2,7 @@ const { User, Role, RefreshToken } = require('../models');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const emailService = require('../services/emailService');
 require('dotenv').config();
 
 const SALT_ROUNDS = 10;
@@ -41,13 +42,23 @@ const authController = {
       }
 
       const hashed = await bcrypt.hash(password, SALT_ROUNDS);
+      const verification_code = Math.floor(100000 + Math.random() * 900000).toString();
+      
       const user = await User.create({
         username, name, email,
         password: hashed,
         role_id: 2,
         avatar_url: avatar_url || null,
+        is_verified: false,
+        verification_code
       });
-      res.status(201).json({ message: 'Регистрация успешна', userId: user.id });
+
+      await emailService.sendVerificationEmail(email, verification_code);
+
+      res.status(201).json({ 
+        message: 'Регистрация успешна. Код подтверждения отправлен на email.', 
+        userId: user.id 
+      });
     } catch (err) {
       res.status(500).json({ message: 'Ошибка при регистрации', error: err.message });
     }
@@ -63,6 +74,7 @@ const authController = {
       });
       if (!user) return res.status(404).json({ message: 'Пользователь не найден' });
       if (user.is_blocked) return res.status(403).json({ message: 'Аккаунт заблокирован' });
+      if (!user.is_verified) return res.status(403).json({ message: 'Email не подтвержден' });
 
       const valid = await bcrypt.compare(password, user.password);
       if (!valid) return res.status(401).json({ message: 'Неверный пароль' });
@@ -143,9 +155,9 @@ const authController = {
       const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 минут
       await user.update({ password_reset_code: code, password_reset_expires: expires });
 
-      // TODO: интегрировать реальную отправку email (nodemailer)
-      // В продакшене code отправляется по почте. Сейчас возвращаем в ответе для тестирования.
-      res.json({ message: 'Код отправлен на email', code_debug: code });
+      await emailService.sendPasswordResetEmail(email, code);
+
+      res.json({ message: 'Код отправлен на email' });
     } catch (err) {
       res.status(500).json({ message: 'Ошибка', error: err.message });
     }
@@ -177,6 +189,33 @@ const authController = {
       res.json({ message: 'Пароль успешно изменён' });
     } catch (err) {
       res.status(500).json({ message: 'Ошибка', error: err.message });
+    }
+  },
+
+  // POST /auth/verify-email
+  verifyEmail: async (req, res) => {
+    try {
+      const { email, code } = req.body;
+      if (!email || !code) {
+        return res.status(400).json({ message: 'Email и код обязательны' });
+      }
+
+      const user = await User.findOne({ where: { email } });
+      if (!user) return res.status(404).json({ message: 'Пользователь не найден' });
+
+      if (user.is_verified) {
+        return res.status(400).json({ message: 'Email уже подтвержден' });
+      }
+
+      if (user.verification_code !== code) {
+        return res.status(400).json({ message: 'Неверный код подтверждения' });
+      }
+
+      await user.update({ is_verified: true, verification_code: null });
+
+      res.json({ message: 'Email успешно подтвержден' });
+    } catch (err) {
+      res.status(500).json({ message: 'Ошибка при подтверждении email', error: err.message });
     }
   },
 };
