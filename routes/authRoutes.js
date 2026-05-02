@@ -133,5 +133,27 @@ router.post('/password-recovery', c.passwordRecovery);
  *       200: { description: Пароль изменён }
  */
 router.post('/reset-password', c.resetPassword);
+ 
+/**
+ * @swagger
+ * /auth/verify-email:
+ *   post:
+ *     summary: Подтверждение email по коду
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, code]
+ *             properties:
+ *               email: { type: string }
+ *               code: { type: string }
+ *     responses:
+ *       200: { description: Email подтвержден }
+ *       400: { description: Неверный код или email уже подтвержден }
+ */
+router.post('/verify-email', c.verifyEmail);
 
 module.exports = router;
