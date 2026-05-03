@@ -36,18 +36,25 @@ async function seed() {
 
     console.log('Seeding Meta Tables...');
     const kitchens = await NationalKitchen.bulkCreate([
-      { name: 'Итальянская' }, { name: 'Русская' }, { name: 'Грузинская' }, { name: 'Французская' }
+      { name: 'Итальянская', image_url: faker.image.urlLoremFlickr({ category: 'italy,food' }) }, 
+      { name: 'Русская', image_url: faker.image.urlLoremFlickr({ category: 'russia,food' }) }, 
+      { name: 'Грузинская', image_url: faker.image.urlLoremFlickr({ category: 'georgia,food' }) }, 
+      { name: 'Французская', image_url: faker.image.urlLoremFlickr({ category: 'france,food' }) }
     ]);
     const celebrations = await Celebration.bulkCreate([
-      { name: 'День Рождения' }, { name: 'Новый Год' }, { name: 'Пасха' }
+      { name: 'День Рождения', image_url: faker.image.urlLoremFlickr({ category: 'birthday,party' }) }, 
+      { name: 'Новый Год', image_url: faker.image.urlLoremFlickr({ category: 'newyear' }) }, 
+      { name: 'Пасха', image_url: faker.image.urlLoremFlickr({ category: 'easter' }) }
     ]);
     const typeCooking = await TypeCooking.bulkCreate([
-      { name: 'Варка' }, { name: 'Жарка' }, { name: 'Запекание' }
+      { name: 'Варка', image_url: faker.image.urlLoremFlickr({ category: 'boiling,cook' }) }, 
+      { name: 'Жарка', image_url: faker.image.urlLoremFlickr({ category: 'frying,cook' }) }, 
+      { name: 'Запекание', image_url: faker.image.urlLoremFlickr({ category: 'baking,cook' }) }
     ]);
     const categories = await Category.bulkCreate([
-      { name: 'Завтраки', description: 'Лучшее начало дня' },
-      { name: 'Обеды', description: 'Сытные блюда' },
-      { name: 'Ужины', description: 'Легкие блюда' }
+      { name: 'Завтраки', description: 'Лучшее начало дня', image_url: faker.image.urlLoremFlickr({ category: 'breakfast' }) },
+      { name: 'Обеды', description: 'Сытные блюда', image_url: faker.image.urlLoremFlickr({ category: 'lunch' }) },
+      { name: 'Ужины', description: 'Легкие блюда', image_url: faker.image.urlLoremFlickr({ category: 'dinner' }) }
     ]);
 
     console.log('Seeding Ingredients...');

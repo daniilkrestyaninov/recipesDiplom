@@ -1,6 +1,6 @@
 const { Recipe, User, Ingredient, RecipeIngredient, RecipeCategory,
   Step, NationalKitchen, Category, Celebration, TypeCooking, Like,
-  Subscription, PersonalNote, CookedRecipe } = require('../models');
+  Subscription, PersonalNote, CookedRecipe, Comment, sequelize } = require('../models');
 const { Op, fn } = require('sequelize');
 const geminiService = require('../services/geminiService');
 
@@ -18,11 +18,24 @@ const fullInclude = [
 const rc = {
   getAll: async (req, res) => {
     try {
-      const { kitchen_id, celebration_id, cooking_id, difficulty, is_private, search, category_id } = req.query;
+      let { kitchen_id, celebration_id, cooking_id, difficulty, is_private, search, category_id } = req.query;
+      
+      const parseFilter = (val) => {
+        if (!val) return null;
+        if (Array.isArray(val)) return val;
+        if (typeof val === 'string' && val.includes(',')) return val.split(',');
+        return val;
+      };
+
+      kitchen_id = parseFilter(kitchen_id);
+      celebration_id = parseFilter(celebration_id);
+      cooking_id = parseFilter(cooking_id);
+      category_id = parseFilter(category_id);
+
       const where = {};
-      if (kitchen_id) where.kitchen_id = kitchen_id;
-      if (celebration_id) where.celebration_id = celebration_id;
-      if (cooking_id) where.cooking_id = cooking_id;
+      if (kitchen_id) where.kitchen_id = { [Op.in]: Array.isArray(kitchen_id) ? kitchen_id : [kitchen_id] };
+      if (celebration_id) where.celebration_id = { [Op.in]: Array.isArray(celebration_id) ? celebration_id : [celebration_id] };
+      if (cooking_id) where.cooking_id = { [Op.in]: Array.isArray(cooking_id) ? cooking_id : [cooking_id] };
       if (difficulty) where.difficulty = difficulty;
       if (is_private !== undefined) where.is_private = is_private === 'true';
       if (search) where[Op.or] = [
@@ -34,8 +47,15 @@ const rc = {
         { model: NationalKitchen, as: 'Kitchen' },
         { model: Like, as: 'Likes', attributes: ['user_id'] },
       ];
-      if (category_id) include.push({ model: Category, as: 'Categories', where: { id: category_id } });
-      else include.push({ model: Category, as: 'Categories' });
+      if (category_id) {
+        include.push({ 
+          model: Category, 
+          as: 'Categories', 
+          where: { id: { [Op.in]: Array.isArray(category_id) ? category_id : [category_id] } } 
+        });
+      } else {
+        include.push({ model: Category, as: 'Categories' });
+      }
       res.json(await Recipe.findAll({ where, include, order: [['created_at', 'DESC']] }));
     } catch (e) { res.status(500).json({ message: 'Ошибка', error: e.message }); }
   },
@@ -65,7 +85,41 @@ const rc = {
     try {
       const r = await Recipe.findByPk(req.params.id, { include: fullInclude });
       if (!r) return res.status(404).json({ message: 'Рецепт не найден' });
-      res.json(r);
+      
+      // Считаем средние оценки вкусов (только по тем отзывам, где заполнен хотя бы один вкус)
+      const tasteStats = await Comment.findOne({
+        where: { 
+          recipe_id: req.params.id,
+          [Op.or]: [
+            { taste_sweet: { [Op.ne]: null } },
+            { taste_sour: { [Op.ne]: null } },
+            { taste_salty: { [Op.ne]: null } },
+            { taste_spicy: { [Op.ne]: null } },
+            { taste_umami: { [Op.ne]: null } }
+          ]
+        },
+        attributes: [
+          [fn('AVG', sequelize.col('taste_sweet')), 'avg_sweet'],
+          [fn('AVG', sequelize.col('taste_sour')), 'avg_sour'],
+          [fn('AVG', sequelize.col('taste_salty')), 'avg_salty'],
+          [fn('AVG', sequelize.col('taste_spicy')), 'avg_spicy'],
+          [fn('AVG', sequelize.col('taste_umami')), 'avg_umami'],
+          [fn('COUNT', sequelize.col('id')), 'total_reviews']
+        ],
+        raw: true
+      });
+
+      const recipeData = r.toJSON();
+      recipeData.taste_averages = {
+        sweet: parseFloat(tasteStats.avg_sweet || 0).toFixed(1),
+        sour: parseFloat(tasteStats.avg_sour || 0).toFixed(1),
+        salty: parseFloat(tasteStats.avg_salty || 0).toFixed(1),
+        spicy: parseFloat(tasteStats.avg_spicy || 0).toFixed(1),
+        umami: parseFloat(tasteStats.avg_umami || 0).toFixed(1),
+        total_reviews: parseInt(tasteStats.total_reviews || 0)
+      };
+
+      res.json(recipeData);
     } catch (e) { res.status(500).json({ message: 'Ошибка', error: e.message }); }
   },
 

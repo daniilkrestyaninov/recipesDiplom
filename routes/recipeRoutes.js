@@ -301,6 +301,11 @@ router.get('/:id/comments', comment.getByRecipe);
  *               content: { type: string }
  *               rating: { type: integer, minimum: 1, maximum: 5 }
  *               parent_comment_id: { type: integer }
+ *               taste_sweet: { type: integer, minimum: 1, maximum: 5 }
+ *               taste_sour: { type: integer, minimum: 1, maximum: 5 }
+ *               taste_salty: { type: integer, minimum: 1, maximum: 5 }
+ *               taste_spicy: { type: integer, minimum: 1, maximum: 5 }
+ *               taste_umami: { type: integer, minimum: 1, maximum: 5 }
  *     responses:
  *       201: { description: Комментарий добавлен }
  */

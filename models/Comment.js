@@ -28,6 +28,11 @@ const Comment = sequelize.define('Comment', {
     type: DataTypes.BIGINT,
     allowNull: true,
   },
+  taste_sweet: { type: DataTypes.SMALLINT, validate: { min: 1, max: 5 } },
+  taste_sour: { type: DataTypes.SMALLINT, validate: { min: 1, max: 5 } },
+  taste_salty: { type: DataTypes.SMALLINT, validate: { min: 1, max: 5 } },
+  taste_spicy: { type: DataTypes.SMALLINT, validate: { min: 1, max: 5 } },
+  taste_umami: { type: DataTypes.SMALLINT, validate: { min: 1, max: 5 } },
 }, {
   underscored: true,
   tableName: 'comments',
