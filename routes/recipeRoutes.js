@@ -42,6 +42,17 @@ router.get('/', rc.getAll);
 router.get('/feed', auth, rc.getFeed);
 
 /** @swagger
+ * /recipes/recommendations:
+ *   get:
+ *     summary: Рекомендованные рецепты (умная лента)
+ *     tags: [Recipes]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Персонализированный список рекомендаций }
+ */
+router.get('/recommendations', auth, rc.getRecommendations);
+
+/** @swagger
  * /recipes/random:
  *   get:
  *     summary: Случайный рецепт
@@ -83,6 +94,10 @@ router.get('/:id', rc.getById);
  *               portion: { type: integer }
  *               cooking_time: { type: integer }
  *               is_private: { type: boolean }
+ *               proteins: { type: number, description: Белки }
+ *               fats: { type: number, description: Жиры }
+ *               carbohydrates: { type: number, description: Углеводы }
+ *               calorific: { type: integer, description: Калории }
  *               categories: { type: array, items: { type: integer } }
  *               ingredients: { type: array, items: { type: object, properties: { id: { type: integer }, quantity: { type: integer }, note: { type: string } } } }
  *               steps: { type: array, items: { type: object, properties: { description: { type: string }, image_url: { type: string } } } }
@@ -286,6 +301,11 @@ router.get('/:id/comments', comment.getByRecipe);
  *               content: { type: string }
  *               rating: { type: integer, minimum: 1, maximum: 5 }
  *               parent_comment_id: { type: integer }
+ *               taste_sweet: { type: integer, minimum: 1, maximum: 5 }
+ *               taste_sour: { type: integer, minimum: 1, maximum: 5 }
+ *               taste_salty: { type: integer, minimum: 1, maximum: 5 }
+ *               taste_spicy: { type: integer, minimum: 1, maximum: 5 }
+ *               taste_umami: { type: integer, minimum: 1, maximum: 5 }
  *     responses:
  *       201: { description: Комментарий добавлен }
  */

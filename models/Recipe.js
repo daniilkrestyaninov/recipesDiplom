@@ -55,6 +55,19 @@ const Recipe = sequelize.define('Recipe', {
   first_step_id: {
     type: DataTypes.BIGINT,
   },
+  proteins: {
+    type: DataTypes.FLOAT,
+  },
+  fats: {
+    type: DataTypes.FLOAT,
+  },
+  carbohydrates: {
+    type: DataTypes.FLOAT,
+  },
+  is_ai_pfc: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+  },
 }, {
   underscored: true,
 });

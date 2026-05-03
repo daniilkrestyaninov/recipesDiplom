@@ -28,8 +28,6 @@ const geminiService = {
 }`;
 
     try {
-      // 3. Используем ваш изначальный метод. 
-      // ВАЖНО: Если 'gemini-2.5-flash' снова выдаст 404, замените на 'gemini-2.0-flash' или 'gemini-1.5-flash'
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash', 
         contents: prompt,
@@ -44,6 +42,34 @@ const geminiService = {
       console.error('--- ОШИБКА SDK GEMINI ---');
       console.error(error);
       throw new Error('Ошибка генерации рецепта');
+    }
+  },
+
+  calculatePFC: async (title, ingredients) => {
+    const prompt = `Ты диетолог. Рассчитай точное содержание БЖУ (белки, жиры, углеводы) и калорийность для рецепта "${title}".
+Учитывай предоставленные веса и количества ингредиентов: ${ingredients.join(', ')}.
+Верни ответ СТРОГО в виде JSON объекта (средние значения в граммах на 100г ГОТОВОГО блюда):
+{
+  "proteins": 10.5,
+  "fats": 5.2,
+  "carbohydrates": 20.0,
+  "calorific": 150
+}`;
+
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.3,
+        }
+      });
+
+      return JSON.parse(response.text);
+    } catch (error) {
+      console.error('--- ОШИБКА ГЕНЕРАЦИИ БЖУ ---', error.message);
+      return { proteins: 0, fats: 0, carbohydrates: 0, calorific: 0 };
     }
   },
 };

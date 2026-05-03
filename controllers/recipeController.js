@@ -1,7 +1,8 @@
 const { Recipe, User, Ingredient, RecipeIngredient, RecipeCategory,
   Step, NationalKitchen, Category, Celebration, TypeCooking, Like,
-  Subscription, PersonalNote, CookedRecipe } = require('../models');
+  Subscription, PersonalNote, CookedRecipe, Comment, sequelize } = require('../models');
 const { Op, fn } = require('sequelize');
+const geminiService = require('../services/geminiService');
 
 const fullInclude = [
   { model: User, attributes: ['id', 'username', 'name', 'avatar_url'] },
@@ -17,11 +18,24 @@ const fullInclude = [
 const rc = {
   getAll: async (req, res) => {
     try {
-      const { kitchen_id, celebration_id, cooking_id, difficulty, is_private, search, category_id } = req.query;
+      let { kitchen_id, celebration_id, cooking_id, difficulty, is_private, search, category_id } = req.query;
+      
+      const parseFilter = (val) => {
+        if (!val) return null;
+        if (Array.isArray(val)) return val;
+        if (typeof val === 'string' && val.includes(',')) return val.split(',');
+        return val;
+      };
+
+      kitchen_id = parseFilter(kitchen_id);
+      celebration_id = parseFilter(celebration_id);
+      cooking_id = parseFilter(cooking_id);
+      category_id = parseFilter(category_id);
+
       const where = {};
-      if (kitchen_id) where.kitchen_id = kitchen_id;
-      if (celebration_id) where.celebration_id = celebration_id;
-      if (cooking_id) where.cooking_id = cooking_id;
+      if (kitchen_id) where.kitchen_id = { [Op.in]: Array.isArray(kitchen_id) ? kitchen_id : [kitchen_id] };
+      if (celebration_id) where.celebration_id = { [Op.in]: Array.isArray(celebration_id) ? celebration_id : [celebration_id] };
+      if (cooking_id) where.cooking_id = { [Op.in]: Array.isArray(cooking_id) ? cooking_id : [cooking_id] };
       if (difficulty) where.difficulty = difficulty;
       if (is_private !== undefined) where.is_private = is_private === 'true';
       if (search) where[Op.or] = [
@@ -33,8 +47,15 @@ const rc = {
         { model: NationalKitchen, as: 'Kitchen' },
         { model: Like, as: 'Likes', attributes: ['user_id'] },
       ];
-      if (category_id) include.push({ model: Category, as: 'Categories', where: { id: category_id } });
-      else include.push({ model: Category, as: 'Categories' });
+      if (category_id) {
+        include.push({ 
+          model: Category, 
+          as: 'Categories', 
+          where: { id: { [Op.in]: Array.isArray(category_id) ? category_id : [category_id] } } 
+        });
+      } else {
+        include.push({ model: Category, as: 'Categories' });
+      }
       res.json(await Recipe.findAll({ where, include, order: [['created_at', 'DESC']] }));
     } catch (e) { res.status(500).json({ message: 'Ошибка', error: e.message }); }
   },
@@ -64,14 +85,88 @@ const rc = {
     try {
       const r = await Recipe.findByPk(req.params.id, { include: fullInclude });
       if (!r) return res.status(404).json({ message: 'Рецепт не найден' });
-      res.json(r);
+      
+      // Считаем средние оценки вкусов (только по тем отзывам, где заполнен хотя бы один вкус)
+      const tasteStats = await Comment.findOne({
+        where: { 
+          recipe_id: req.params.id,
+          [Op.or]: [
+            { taste_sweet: { [Op.ne]: null } },
+            { taste_sour: { [Op.ne]: null } },
+            { taste_salty: { [Op.ne]: null } },
+            { taste_spicy: { [Op.ne]: null } },
+            { taste_umami: { [Op.ne]: null } }
+          ]
+        },
+        attributes: [
+          [fn('AVG', sequelize.col('taste_sweet')), 'avg_sweet'],
+          [fn('AVG', sequelize.col('taste_sour')), 'avg_sour'],
+          [fn('AVG', sequelize.col('taste_salty')), 'avg_salty'],
+          [fn('AVG', sequelize.col('taste_spicy')), 'avg_spicy'],
+          [fn('AVG', sequelize.col('taste_umami')), 'avg_umami'],
+          [fn('COUNT', sequelize.col('id')), 'total_reviews']
+        ],
+        raw: true
+      });
+
+      const recipeData = r.toJSON();
+      recipeData.taste_averages = {
+        sweet: parseFloat(tasteStats.avg_sweet || 0).toFixed(1),
+        sour: parseFloat(tasteStats.avg_sour || 0).toFixed(1),
+        salty: parseFloat(tasteStats.avg_salty || 0).toFixed(1),
+        spicy: parseFloat(tasteStats.avg_spicy || 0).toFixed(1),
+        umami: parseFloat(tasteStats.avg_umami || 0).toFixed(1),
+        total_reviews: parseInt(tasteStats.total_reviews || 0)
+      };
+
+      res.json(recipeData);
     } catch (e) { res.status(500).json({ message: 'Ошибка', error: e.message }); }
   },
 
   create: async (req, res) => {
     try {
-      const { title, description, difficulty, image_url, is_private, kitchen_id, celebration_id, cooking_id, portion, calorific, cooking_time, ingredients = [], steps = [], categories = [] } = req.body;
-      const recipe = await Recipe.create({ user_id: req.user.id, title, description, difficulty, image_url, is_private: is_private || false, kitchen_id, celebration_id, cooking_id, portion, calorific, cooking_time });
+      const { title, description, difficulty, image_url, is_private, kitchen_id, celebration_id, cooking_id, portion, calorific, cooking_time, ingredients = [], steps = [], categories = [], proteins, fats, carbohydrates } = req.body;
+      
+      let pfcData = { proteins, fats, carbohydrates, calorific, is_ai_pfc: false };
+
+      // Если БЖУ не переданы вручную, рассчитываем через ИИ
+      if (!proteins && !fats && !carbohydrates) {
+        // Получаем имена ингредиентов из БД, так как в req.body приходят только id
+        const ingredientIds = ingredients.map(i => i.id);
+        const dbIngredients = await Ingredient.findAll({
+          where: { id: { [Op.in]: ingredientIds } },
+          attributes: ['id', 'name']
+        });
+
+        // Сопоставляем имена с граммовками из запроса
+        const ingredientDetails = ingredients.map(i => {
+          const dbItem = dbIngredients.find(db => Number(db.id) === Number(i.id));
+          const name = dbItem ? dbItem.name : 'Ингредиент';
+          return `${name} ${i.quantity || ''} ${i.note || ''}`;
+        });
+
+        const aiResult = await geminiService.calculatePFC(title, ingredientDetails);
+        pfcData = { ...aiResult, is_ai_pfc: true };
+      }
+
+      const recipe = await Recipe.create({ 
+        user_id: req.user.id, 
+        title, 
+        description, 
+        difficulty, 
+        image_url, 
+        is_private: is_private || false, 
+        kitchen_id, 
+        celebration_id, 
+        cooking_id, 
+        portion, 
+        calorific: pfcData.calorific, 
+        proteins: pfcData.proteins,
+        fats: pfcData.fats,
+        carbohydrates: pfcData.carbohydrates,
+        is_ai_pfc: pfcData.is_ai_pfc,
+        cooking_time 
+      });
       if (ingredients.length) await RecipeIngredient.bulkCreate(ingredients.map(i => ({ recipe_id: recipe.id, ingredient_id: i.id, quantity: i.quantity, note: i.note })));
       if (steps.length) await Step.bulkCreate(steps.map((s, idx) => ({ recipe_id: recipe.id, step_number: s.step_number || idx + 1, description: s.description, image_url: s.image_url })));
       if (categories.length) await RecipeCategory.bulkCreate(categories.map(catId => ({ recipe_id: recipe.id, category_id: catId })));
@@ -84,6 +179,12 @@ const rc = {
       const r = await Recipe.findByPk(req.params.id);
       if (!r) return res.status(404).json({ message: 'Рецепт не найден' });
       if (Number(r.user_id) !== req.user.id) return res.status(403).json({ message: 'Только автор может редактировать' });
+      
+      // Если при обновлении переданы БЖУ, сбрасываем флаг is_ai_pfc на false
+      if (req.body.proteins || req.body.fats || req.body.carbohydrates) {
+        req.body.is_ai_pfc = false;
+      }
+
       await r.update(req.body);
       res.json(await Recipe.findByPk(r.id, { include: fullInclude }));
     } catch (e) { res.status(500).json({ message: 'Ошибка', error: e.message }); }
@@ -145,6 +246,73 @@ const rc = {
       await row.destroy();
       res.json({ message: 'Ингредиент удалён' });
     } catch (e) { res.status(500).json({ message: 'Ошибка', error: e.message }); }
+  },
+
+  getRecommendations: async (req, res) => {
+    try {
+      const userId = req.user.id;
+
+      // 1. Получаем ID рецептов, которые пользователь уже лайкнул
+      const userLikes = await Like.findAll({
+        where: { user_id: userId },
+        attributes: ['recipe_id']
+      });
+      const likedRecipeIds = userLikes.map(l => l.recipe_id);
+
+      // 2. Получаем категории, которые нравятся пользователю (на основе его лайков)
+      const favoriteCategories = await RecipeCategory.findAll({
+        where: { recipe_id: { [Op.in]: likedRecipeIds } },
+        attributes: [[fn('COUNT', 'category_id'), 'count'], 'category_id'],
+        group: ['category_id'],
+        order: [[fn('COUNT', 'category_id'), 'DESC']],
+        limit: 3
+      });
+
+      const catIds = favoriteCategories.map(c => c.category_id);
+
+      // 3. Находим рекомендации
+      let recommendedRecipes = [];
+
+      if (catIds.length > 0) {
+        // Рецепты из любимых категорий, которые пользователь еще не лайкал
+        recommendedRecipes = await Recipe.findAll({
+          where: {
+            id: { [Op.notIn]: likedRecipeIds },
+            is_private: false
+          },
+          include: [
+            ...fullInclude,
+            {
+              model: Category,
+              as: 'Categories',
+              where: { id: { [Op.in]: catIds } },
+              required: true
+            }
+          ],
+          limit: 10,
+          order: [fn('RANDOM')]
+        });
+      }
+
+      // 4. Если рекомендаций мало, добавляем просто популярные рецепты
+      if (recommendedRecipes.length < 10) {
+        const popularRecipes = await Recipe.findAll({
+          where: {
+            id: { [Op.notIn]: [...likedRecipeIds, ...recommendedRecipes.map(r => r.id)] },
+            is_private: false
+          },
+          include: fullInclude,
+          limit: 10 - recommendedRecipes.length,
+          order: [['created_at', 'DESC']] // Или можно по количеству лайков, если добавить агрегацию
+        });
+        recommendedRecipes = [...recommendedRecipes, ...popularRecipes];
+      }
+
+      // 5. Перемешиваем и отдаем
+      res.json(recommendedRecipes.sort(() => Math.random() - 0.5));
+    } catch (e) {
+      res.status(500).json({ message: 'Ошибка при получении рекомендаций', error: e.message });
+    }
   },
 };
 
