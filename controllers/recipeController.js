@@ -168,7 +168,7 @@ const rc = {
   create: async (req, res) => {
     const t = await sequelize.transaction();
     try {
-      const { title, description, difficulty, image_url, is_private, kitchen_id, celebration_id, cooking_id, portion, calorific, cooking_time, ingredients = [], steps = [], categories = [], proteins, fats, carbohydrates } = req.body;
+      const { title, description, difficulty, image_url, is_private, kitchen_id, celebration_id, cooking_id, portion, calorific, cooking_time, ingredients = [], steps = [], categories = [], proteins, fats, carbohydrates, is_generated } = req.body;
       
       const ingredientDetailsForAI = [];
       const ingredientLinks = [];
@@ -214,7 +214,8 @@ const rc = {
       const recipe = await Recipe.create({ 
         user_id: req.user.id, 
         title, description, difficulty: String(difficulty), image_url, 
-        is_private: is_private || false, 
+        is_private: is_generated ? true : (is_private || false), 
+        is_generated: is_generated || false,
         kitchen_id, celebration_id, cooking_id, portion, 
         calorific: pfcData.calorific, 
         proteins: pfcData.proteins,
@@ -255,6 +256,11 @@ const rc = {
       
       if (req.body.proteins || req.body.fats || req.body.carbohydrates) {
         req.body.is_ai_pfc = false;
+      }
+
+      // Запрещаем делать сгенерированные рецепты публичными
+      if (r.is_generated && req.body.is_private === false) {
+        return res.status(400).json({ message: 'Сгенерированные ИИ рецепты должны оставаться приватными' });
       }
 
       await r.update(req.body);

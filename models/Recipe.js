@@ -72,6 +72,10 @@ const Recipe = sequelize.define('Recipe', {
     type: DataTypes.INTEGER,
     defaultValue: 0,
   },
+  is_generated: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+  },
 }, {
   underscored: true,
 });
