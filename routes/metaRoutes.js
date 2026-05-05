@@ -50,6 +50,16 @@ router.get('/cooking-types', c.getTypeCooking);
 router.get('/celebrations', c.getCelebrations);
 
 /** @swagger
+ * /meta/units:
+ *   get:
+ *     summary: Список единиц измерения
+ *     tags: [Meta]
+ *     responses:
+ *       200: { description: Массив единиц измерения }
+ */
+router.get('/units', c.getUnits);
+
+/** @swagger
  * /meta/ingredients:
  *   get:
  *     summary: Поиск ингредиентов
@@ -60,5 +70,55 @@ router.get('/celebrations', c.getCelebrations);
  *       200: { description: Массив ингредиентов }
  */
 router.get('/ingredients', c.getIngredients);
+
+/** @swagger
+ * /meta/ingredients:
+ *   post:
+ *     summary: Создать новый ингредиент
+ *     tags: [Meta]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name: { type: string }
+ *               unit_of_measurement: { type: string }
+ *               description: { type: string }
+ *     responses:
+ *       201: { description: Созданный ингредиент }
+ */
+router.post('/ingredients', c.createIngredient);
+
+/** @swagger
+ * /meta/ingredients/{id}:
+ *   put:
+ *     summary: Обновить ингредиент
+ *     tags: [Meta]
+ *     parameters:
+ *       - { in: path, name: id, required: true, schema: { type: string } }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200: { description: Обновленный ингредиент }
+ */
+router.put('/ingredients/:id', c.updateIngredient);
+
+/** @swagger
+ * /meta/ingredients/{id}:
+ *   delete:
+ *     summary: Удалить ингредиент
+ *     tags: [Meta]
+ *     parameters:
+ *       - { in: path, name: id, required: true, schema: { type: string } }
+ *     responses:
+ *       200: { description: Сообщение об удалении }
+ */
+router.delete('/ingredients/:id', c.deleteIngredient);
 
 module.exports = router;

@@ -11,9 +11,13 @@ const Ingredient = sequelize.define('Ingredient', {
     type: DataTypes.STRING,
     allowNull: false,
   },
+  unit_id: {
+    type: DataTypes.BIGINT,
+    allowNull: true,
+  },
   unit_of_measurement: {
     type: DataTypes.STRING,
-    allowNull: false,
+    allowNull: true,
   },
   description: {
     type: DataTypes.STRING,

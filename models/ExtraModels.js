@@ -34,4 +34,10 @@ const Step = sequelize.define('Step', {
   description: { type: DataTypes.TEXT, allowNull: false },
 }, { underscored: true });
 
-module.exports = { Category, Celebration, NationalKitchen, TypeCooking, Step };
+const Unit = sequelize.define('Unit', {
+  id: { type: DataTypes.BIGINT, primaryKey: true, autoIncrement: true },
+  name: { type: DataTypes.STRING, allowNull: false },
+  short_name: { type: DataTypes.STRING },
+}, { underscored: true });
+
+module.exports = { Category, Celebration, NationalKitchen, TypeCooking, Step, Unit };

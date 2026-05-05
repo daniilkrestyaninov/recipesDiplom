@@ -68,6 +68,10 @@ const Recipe = sequelize.define('Recipe', {
     type: DataTypes.BOOLEAN,
     defaultValue: false,
   },
+  views_count: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+  },
 }, {
   underscored: true,
 });

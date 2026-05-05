@@ -5,7 +5,7 @@ const Recipe = require('./Recipe');
 const Ingredient = require('./Ingredient');
 const RecipeIngredient = require('./RecipeIngredient');
 const RecipeCategory = require('./RecipeCategory');
-const { Category, Celebration, NationalKitchen, TypeCooking, Step } = require('./ExtraModels');
+const { Category, Celebration, NationalKitchen, TypeCooking, Step, Unit } = require('./ExtraModels');
 const Subscription = require('./Subscription');
 const Like = require('./Like');
 const Favorite = require('./Favorite');
@@ -111,6 +111,10 @@ Recipe.hasMany(CookedRecipe, { foreignKey: 'recipe_id' });
 CookedRecipe.belongsTo(User, { foreignKey: 'user_id' });
 CookedRecipe.belongsTo(Recipe, { foreignKey: 'recipe_id' });
 
+// ── Units & Ingredients ──────────────────────────────────────
+Unit.hasMany(Ingredient, { foreignKey: 'unit_id' });
+Ingredient.belongsTo(Unit, { foreignKey: 'unit_id', as: 'Unit' });
+
 module.exports = {
   sequelize,
   User,
@@ -124,6 +128,7 @@ module.exports = {
   NationalKitchen,
   TypeCooking,
   Step,
+  Unit,
   Subscription,
   Like,
   Favorite,
