@@ -131,4 +131,19 @@ router.get('/:id/followers', social.getFollowers);
  */
 router.get('/:id/following', social.getFollowing);
 
+/** @swagger
+ * /users/{id}/recipes:
+ *   get:
+ *     summary: Рецепты конкретного пользователя
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200: { description: Список рецептов пользователя }
+ */
+router.get('/:id/recipes', c.getUserRecipes);
+
 module.exports = router;

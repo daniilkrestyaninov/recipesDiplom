@@ -47,6 +47,9 @@ router.get('/feed', auth, rc.getFeed);
  *     summary: Рекомендованные рецепты (умная лента)
  *     tags: [Recipes]
  *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: query, name: page, schema: { type: integer }, description: Номер страницы }
+ *       - { in: query, name: limit, schema: { type: integer }, description: Элементов на странице }
  *     responses:
  *       200: { description: Персонализированный список рекомендаций }
  */

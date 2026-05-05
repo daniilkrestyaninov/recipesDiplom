@@ -75,6 +75,28 @@ const userController = {
       res.status(500).json({ message: 'Ошибка', error: err.message });
     }
   },
+
+  // GET /users/:id/recipes
+  getUserRecipes: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const recipes = await Recipe.findAll({
+        where: { 
+          user_id: id, 
+          // Если запрашивает не владелец, показываем только публичные
+          ...(req.user?.id !== Number(id) ? { is_private: false } : {})
+        },
+        order: [['created_at', 'DESC']],
+        include: [
+          { model: User, attributes: ['id', 'username', 'name', 'avatar_url'] },
+          { model: Like, as: 'Likes', attributes: ['user_id'] },
+        ]
+      });
+      res.json(recipes);
+    } catch (err) {
+      res.status(500).json({ message: 'Ошибка', error: err.message });
+    }
+  },
 };
 
 module.exports = userController;
