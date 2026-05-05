@@ -20,7 +20,7 @@ const cc = {
   createForRecipe: async (req, res) => {
     try {
       const { content, rating, parent_comment_id, taste_sweet, taste_sour, taste_salty, taste_spicy, taste_umami } = req.body;
-      if (!content || rating === undefined) return res.status(400).json({ message: 'content и rating обязательны' });
+      if (!content) return res.status(400).json({ message: 'content обязателен' });
       const comment = await Comment.create({
         user_id: req.user.id, recipe_id: req.params.id,
         content, rating, parent_comment_id: parent_comment_id || null,
