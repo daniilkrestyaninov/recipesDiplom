@@ -21,7 +21,7 @@ const Comment = sequelize.define('Comment', {
   },
   rating: {
     type: DataTypes.SMALLINT,
-    allowNull: false,
+    allowNull: true,
     validate: { min: 1, max: 5 },
   },
   parent_comment_id: {

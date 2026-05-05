@@ -29,7 +29,7 @@ const attachRatings = async (recipes) => {
     attributes: [
       'recipe_id',
       [fn('AVG', col('rating')), 'avg_rating'],
-      [fn('COUNT', col('id')), 'total_reviews']
+      [fn('COUNT', col('rating')), 'total_reviews']
     ],
     group: ['recipe_id'],
     raw: true
@@ -145,7 +145,7 @@ const rc = {
           [fn('AVG', sequelize.col('taste_salty')), 'avg_salty'],
           [fn('AVG', sequelize.col('taste_spicy')), 'avg_spicy'],
           [fn('AVG', sequelize.col('taste_umami')), 'avg_umami'],
-          [fn('COUNT', sequelize.col('id')), 'total_reviews']
+          [fn('COUNT', sequelize.col('rating')), 'total_reviews']
         ],
         raw: true
       });
