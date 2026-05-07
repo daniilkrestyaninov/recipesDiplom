@@ -99,6 +99,126 @@ const metaController = {
     }
   },
 
+  // ── Categories ──────────────────────────────────────────────
+  createCategory: async (req, res) => {
+    try {
+      const category = await Category.create(req.body);
+      res.status(201).json(category);
+    } catch (err) { res.status(500).json({ message: 'Ошибка создания', error: err.message }); }
+  },
+  updateCategory: async (req, res) => {
+    try {
+      const item = await Category.findByPk(req.params.id);
+      if (!item) return res.status(404).json({ message: 'Не найдено' });
+      await item.update(req.body);
+      res.json(item);
+    } catch (err) { res.status(500).json({ message: 'Ошибка обновления', error: err.message }); }
+  },
+  deleteCategory: async (req, res) => {
+    try {
+      const item = await Category.findByPk(req.params.id);
+      if (!item) return res.status(404).json({ message: 'Не найдено' });
+      await item.destroy();
+      res.json({ message: 'Удалено' });
+    } catch (err) { res.status(500).json({ message: 'Ошибка удаления', error: err.message }); }
+  },
+
+  // ── Kitchens ────────────────────────────────────────────────
+  createKitchen: async (req, res) => {
+    try {
+      const kitchen = await NationalKitchen.create(req.body);
+      res.status(201).json(kitchen);
+    } catch (err) { res.status(500).json({ message: 'Ошибка создания', error: err.message }); }
+  },
+  updateKitchen: async (req, res) => {
+    try {
+      const item = await NationalKitchen.findByPk(req.params.id);
+      if (!item) return res.status(404).json({ message: 'Не найдено' });
+      await item.update(req.body);
+      res.json(item);
+    } catch (err) { res.status(500).json({ message: 'Ошибка обновления', error: err.message }); }
+  },
+  deleteKitchen: async (req, res) => {
+    try {
+      const item = await NationalKitchen.findByPk(req.params.id);
+      if (!item) return res.status(404).json({ message: 'Не найдено' });
+      await item.destroy();
+      res.json({ message: 'Удалено' });
+    } catch (err) { res.status(500).json({ message: 'Ошибка удаления', error: err.message }); }
+  },
+
+  // ── Celebrations ────────────────────────────────────────────
+  createCelebration: async (req, res) => {
+    try {
+      const celebration = await Celebration.create(req.body);
+      res.status(201).json(celebration);
+    } catch (err) { res.status(500).json({ message: 'Ошибка создания', error: err.message }); }
+  },
+  updateCelebration: async (req, res) => {
+    try {
+      const item = await Celebration.findByPk(req.params.id);
+      if (!item) return res.status(404).json({ message: 'Не найдено' });
+      await item.update(req.body);
+      res.json(item);
+    } catch (err) { res.status(500).json({ message: 'Ошибка обновления', error: err.message }); }
+  },
+  deleteCelebration: async (req, res) => {
+    try {
+      const item = await Celebration.findByPk(req.params.id);
+      if (!item) return res.status(404).json({ message: 'Не найдено' });
+      await item.destroy();
+      res.json({ message: 'Удалено' });
+    } catch (err) { res.status(500).json({ message: 'Ошибка удаления', error: err.message }); }
+  },
+
+  // ── Cooking Types ───────────────────────────────────────────
+  createTypeCooking: async (req, res) => {
+    try {
+      const item = await TypeCooking.create(req.body);
+      res.status(201).json(item);
+    } catch (err) { res.status(500).json({ message: 'Ошибка создания', error: err.message }); }
+  },
+  updateTypeCooking: async (req, res) => {
+    try {
+      const item = await TypeCooking.findByPk(req.params.id);
+      if (!item) return res.status(404).json({ message: 'Не найдено' });
+      await item.update(req.body);
+      res.json(item);
+    } catch (err) { res.status(500).json({ message: 'Ошибка обновления', error: err.message }); }
+  },
+  deleteTypeCooking: async (req, res) => {
+    try {
+      const item = await TypeCooking.findByPk(req.params.id);
+      if (!item) return res.status(404).json({ message: 'Не найдено' });
+      await item.destroy();
+      res.json({ message: 'Удалено' });
+    } catch (err) { res.status(500).json({ message: 'Ошибка удаления', error: err.message }); }
+  },
+
+  // ── Units ───────────────────────────────────────────────────
+  createUnit: async (req, res) => {
+    try {
+      const item = await Unit.create(req.body);
+      res.status(201).json(item);
+    } catch (err) { res.status(500).json({ message: 'Ошибка создания', error: err.message }); }
+  },
+  updateUnit: async (req, res) => {
+    try {
+      const item = await Unit.findByPk(req.params.id);
+      if (!item) return res.status(404).json({ message: 'Не найдено' });
+      await item.update(req.body);
+      res.json(item);
+    } catch (err) { res.status(500).json({ message: 'Ошибка обновления', error: err.message }); }
+  },
+  deleteUnit: async (req, res) => {
+    try {
+      const item = await Unit.findByPk(req.params.id);
+      if (!item) return res.status(404).json({ message: 'Не найдено' });
+      await item.destroy();
+      res.json({ message: 'Удалено' });
+    } catch (err) { res.status(500).json({ message: 'Ошибка удаления', error: err.message }); }
+  },
+
   // GET /meta/roles
   getRoles: async (req, res) => {
     try {

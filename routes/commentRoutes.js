@@ -23,4 +23,17 @@ const auth = require('../middleware/authMiddleware');
  */
 router.delete('/:id', auth, cc.delete);
 
+/** @swagger
+ * /comments/{id}/like:
+ *   post:
+ *     summary: Лайкнуть/убрать лайк с комментария
+ *     tags: [Comments]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
+ *     responses:
+ *       200: { description: Статус лайка изменён }
+ */
+router.post('/:id/like', auth, cc.toggleLike);
+
 module.exports = router;

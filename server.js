@@ -52,6 +52,7 @@ app.use('/tools', require('./routes/toolsRoutes'));
 app.use('/ai', require('./routes/toolsRoutes')); // Здесь можно выделить в отдельный aiRoutes позже
 app.use('/sync', require('./routes/syncRoutes'));
 app.use('/upload', require('./routes/uploadRoutes'));
+app.use('/reports', require('./routes/reportRoutes'));
 
 // ── Глобальный обработчик ошибок ─────────────────────────────
 app.use((err, req, res, next) => {

@@ -13,6 +13,8 @@ const Comment = require('./Comment');
 const RefreshToken = require('./RefreshToken');
 const PersonalNote = require('./PersonalNote');
 const CookedRecipe = require('./CookedRecipe');
+const CommentLike = require('./CommentLike');
+const Report = require('./Report');
 
 // ── User & Role ──────────────────────────────────────────────
 Role.hasMany(User, { foreignKey: 'role_id' });
@@ -98,6 +100,10 @@ Comment.belongsTo(User, { foreignKey: 'user_id', as: 'Author' });
 Comment.belongsTo(Recipe, { foreignKey: 'recipe_id' });
 Comment.hasMany(Comment, { foreignKey: 'parent_comment_id', as: 'Replies' });
 Comment.belongsTo(Comment, { foreignKey: 'parent_comment_id', as: 'Parent' });
+Comment.hasMany(CommentLike, { foreignKey: 'comment_id', as: 'Likes' });
+CommentLike.belongsTo(Comment, { foreignKey: 'comment_id' });
+CommentLike.belongsTo(User, { foreignKey: 'user_id' });
+User.hasMany(CommentLike, { foreignKey: 'user_id' });
 
 // ── Personal Notes ───────────────────────────────────────────
 User.hasMany(PersonalNote, { foreignKey: 'user_id' });
@@ -114,6 +120,14 @@ CookedRecipe.belongsTo(Recipe, { foreignKey: 'recipe_id' });
 // ── Units & Ingredients ──────────────────────────────────────
 Unit.hasMany(Ingredient, { foreignKey: 'unit_id' });
 Ingredient.belongsTo(Unit, { foreignKey: 'unit_id', as: 'Unit' });
+
+// ── Reports ──────────────────────────────────────────────────
+User.hasMany(Report, { foreignKey: 'reporter_id', as: 'SentReports' });
+User.hasMany(Report, { foreignKey: 'reported_user_id', as: 'ReceivedReports' });
+Recipe.hasMany(Report, { foreignKey: 'recipe_id', as: 'Reports' });
+Report.belongsTo(User, { foreignKey: 'reporter_id', as: 'Reporter' });
+Report.belongsTo(User, { foreignKey: 'reported_user_id', as: 'ReportedUser' });
+Report.belongsTo(Recipe, { foreignKey: 'recipe_id', as: 'ReportedRecipe' });
 
 module.exports = {
   sequelize,
@@ -136,4 +150,6 @@ module.exports = {
   RefreshToken,
   PersonalNote,
   CookedRecipe,
+  CommentLike,
+  Report,
 };

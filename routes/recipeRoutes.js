@@ -4,6 +4,7 @@ const rc = require('../controllers/recipeController');
 const social = require('../controllers/socialController');
 const comment = require('../controllers/commentController');
 const auth = require('../middleware/authMiddleware');
+const maybeAuth = require('../middleware/maybeAuth');
 
 /**
  * @swagger
@@ -283,7 +284,7 @@ router.delete('/:id/favorite', auth, social.removeFavorite);
  *     responses:
  *       200: { description: Список комментариев }
  */
-router.get('/:id/comments', comment.getByRecipe);
+router.get('/:id/comments', maybeAuth, comment.getByRecipe);
 
 /** @swagger
  * /recipes/{id}/comments:

@@ -2,11 +2,12 @@ const { GoogleGenAI } = require('@google/genai');
 require('dotenv').config();
 
 // 1. Убираем случайные слэши на конце ссылки, чтобы SDK не сломал путь
-const safeBaseUrl = process.env.GEMINI_BASE_URL.replace(/\/$/, "");
+const rawBaseUrl = process.env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com";
+const safeBaseUrl = rawBaseUrl.replace(/\/$/, "");
 
 // 2. Инициализируем новый SDK ПРАВИЛЬНО
 const ai = new GoogleGenAI({ 
-  apiKey: process.env.GEMINI_API_KEY.trim(),
+  apiKey: (process.env.GEMINI_API_KEY || "").trim(),
   httpOptions: {
     baseUrl: safeBaseUrl 
   }
