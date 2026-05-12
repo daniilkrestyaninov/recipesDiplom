@@ -160,6 +160,7 @@ router.get('/:id/following', social.getFollowing);
  *     responses:
  *       200: { description: Список рецептов пользователя }
  */
-router.get('/:id/recipes', c.getUserRecipes);
+const maybeAuth = require('../middleware/maybeAuth');
+router.get('/:id/recipes', maybeAuth, c.getUserRecipes);
 
 module.exports = router;
