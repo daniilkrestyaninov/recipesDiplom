@@ -3,6 +3,7 @@ const router = express.Router();
 const c = require('../controllers/userController');
 const social = require('../controllers/socialController');
 const auth = require('../middleware/authMiddleware');
+const { maybeAuth } = auth;
 
 /**
  * @swagger
@@ -160,7 +161,5 @@ router.get('/:id/following', social.getFollowing);
  *     responses:
  *       200: { description: Список рецептов пользователя }
  */
-const { maybeAuth } = require('../middleware/authMiddleware');
 router.get('/:id/recipes', maybeAuth, c.getUserRecipes);
-
 module.exports = router;
