@@ -83,7 +83,7 @@ router.get('/search', c.search);
  *     responses:
  *       200: { description: Профиль пользователя }
  */
-router.get('/:id', c.getUserById);
+router.get('/:id', maybeAuth, c.getUserById);
 
 /** @swagger
  * /users/{id}/follow:
@@ -160,7 +160,7 @@ router.get('/:id/following', social.getFollowing);
  *     responses:
  *       200: { description: Список рецептов пользователя }
  */
-const maybeAuth = require('../middleware/maybeAuth');
+const { maybeAuth } = require('../middleware/authMiddleware');
 router.get('/:id/recipes', maybeAuth, c.getUserRecipes);
 
 module.exports = router;

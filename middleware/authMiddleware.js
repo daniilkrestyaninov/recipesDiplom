@@ -18,4 +18,22 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
+const maybeAuth = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return next();
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'super_secret_key');
+    req.user = decoded;
+    next();
+  } catch (error) {
+    next(); // Просто пропускаем, если токен невалидный
+  }
+};
+
 module.exports = authMiddleware;
+module.exports.maybeAuth = maybeAuth;

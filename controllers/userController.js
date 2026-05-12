@@ -59,7 +59,12 @@ const userController = {
         attributes: { exclude: ['password', 'password_reset_code', 'password_reset_expires'] },
         include: [
           { model: Role, attributes: ['name'] },
-          { model: Recipe, attributes: ['id', 'title', 'image_url', 'cooking_time', 'created_at'] },
+          { 
+            model: Recipe, 
+            attributes: ['id', 'title', 'image_url', 'cooking_time', 'created_at', 'is_private'],
+            where: (req.user && Number(req.user.id) === Number(req.params.id)) ? {} : { is_private: false },
+            required: false
+          },
         ],
       });
       if (!user) return res.status(404).json({ message: 'Пользователь не найден' });
@@ -86,7 +91,7 @@ const userController = {
         where: { 
           user_id: id, 
           // Если запрашивает не владелец, показываем только публичные
-          ...(req.user?.id !== Number(id) ? { is_private: false } : {})
+          ...( (req.user && Number(req.user.id) === Number(id)) ? {} : { is_private: false } )
         },
         order: [['created_at', 'DESC']],
         include: [
