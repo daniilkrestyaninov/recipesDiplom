@@ -1,5 +1,5 @@
 const { User, Role, Recipe, Subscription, Like, Favorite, Comment,
-  CookedRecipe, RefreshToken } = require('../models');
+  CookedRecipe, RefreshToken, CommentLike, Report, PersonalNote } = require('../models');
 const { Op } = require('sequelize');
 
 
@@ -44,6 +44,9 @@ const userController = {
       await Subscription.destroy({ where: { follower_id: userId } });
       await Subscription.destroy({ where: { following_id: userId } });
       await RefreshToken.destroy({ where: { user_id: userId } });
+      await PersonalNote.destroy({ where: { user_id: userId } });
+      await CommentLike.destroy({ where: { user_id: userId } });
+      await Report.destroy({ where: { [Op.or]: [{ reporter_id: userId }, { reported_user_id: userId }] } });
       await Recipe.destroy({ where: { user_id: userId } });
       await User.destroy({ where: { id: userId } });
       res.json({ message: 'Аккаунт и все персональные данные удалены' });
