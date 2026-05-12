@@ -6,9 +6,9 @@ const geminiService = require('../services/geminiService');
 
 const getFullInclude = () => [
   { model: User, attributes: ['id', 'username', 'name', 'avatar_url'] },
-  { 
-    model: Ingredient, 
-    as: 'Ingredients', 
+  {
+    model: Ingredient,
+    as: 'Ingredients',
     through: { attributes: ['quantity', 'note'] },
     include: [{ model: Unit, as: 'Unit' }]
   },
@@ -22,7 +22,7 @@ const getFullInclude = () => [
 
 const attachRatings = async (recipes) => {
   if (!recipes || recipes.length === 0) return [];
-  
+
   const recipeIds = recipes.map(r => r.id);
   const recipeRatings = await Comment.findAll({
     where: { recipe_id: { [Op.in]: recipeIds } },
@@ -48,7 +48,7 @@ const rc = {
   getAll: async (req, res) => {
     try {
       let { kitchen_id, celebration_id, cooking_id, difficulty, is_private, search, category_id } = req.query;
-      
+
       const parseFilter = (val) => {
         if (!val) return null;
         if (Array.isArray(val)) return val;
@@ -66,7 +66,7 @@ const rc = {
       if (celebration_id) where.celebration_id = { [Op.in]: celebration_id };
       if (cooking_id) where.cooking_id = { [Op.in]: cooking_id };
       if (difficulty) where.difficulty = difficulty;
-      
+
       // По умолчанию для общей ленты показываем только публичные
       if (is_private !== undefined) {
         where.is_private = is_private === 'true';
@@ -78,7 +78,7 @@ const rc = {
         { title: { [Op.iLike]: `%${search}%` } },
         { description: { [Op.iLike]: `%${search}%` } },
       ];
-      
+
       const include = getFullInclude();
       if (category_id) {
         const catIdx = include.findIndex(i => i.as === 'Categories');
@@ -97,7 +97,7 @@ const rc = {
     try {
       const subs = await Subscription.findAll({ where: { follower_id: req.user.id }, attributes: ['following_id'] });
       const ids = subs.map(s => s.following_id);
-      
+
       // Если подписок нет, показываем общую ленту свежих рецептов (лента "Открытия")
       if (!ids.length) {
         const recipes = await Recipe.findAll({
@@ -131,11 +131,11 @@ const rc = {
     try {
       const r = await Recipe.findByPk(req.params.id, { include: getFullInclude() });
       if (!r) return res.status(404).json({ message: 'Рецепт не найден' });
-      
+
       // Увеличиваем счетчик просмотров при каждом открытии
       await r.increment('views_count');
       r.views_count += 1; // Обновляем локально, чтобы в ответе сразу было новое значение
-      
+
       const stats = await Comment.findOne({
         where: { recipe_id: req.params.id },
         attributes: [
@@ -169,7 +169,7 @@ const rc = {
     const t = await sequelize.transaction();
     try {
       const { title, description, difficulty, image_url, is_private, kitchen_id, celebration_id, cooking_id, portion, calorific, cooking_time, ingredients = [], steps = [], categories = [], proteins, fats, carbohydrates, is_generated } = req.body;
-      
+
       const ingredientDetailsForAI = [];
       const ingredientLinks = [];
 
@@ -211,29 +211,29 @@ const rc = {
         pfcData = { ...aiResult, is_ai_pfc: true };
       }
 
-      const recipe = await Recipe.create({ 
-        user_id: req.user.id, 
-        title, description, difficulty: String(difficulty), image_url, 
-        is_private: is_generated ? true : (is_private || false), 
+      const recipe = await Recipe.create({
+        user_id: req.user.id,
+        title, description, difficulty: String(difficulty), image_url,
+        is_private: is_generated ? true : (is_private || false),
         is_generated: is_generated || false,
-        kitchen_id, celebration_id, cooking_id, portion, 
-        calorific: pfcData.calorific, 
+        kitchen_id, celebration_id, cooking_id, portion,
+        calorific: pfcData.calorific,
         proteins: pfcData.proteins,
         fats: pfcData.fats,
         carbohydrates: pfcData.carbohydrates,
         is_ai_pfc: pfcData.is_ai_pfc,
-        cooking_time 
+        cooking_time
       }, { transaction: t });
 
       if (ingredientLinks.length) {
         await RecipeIngredient.bulkCreate(ingredientLinks.map(link => ({ ...link, recipe_id: recipe.id })), { transaction: t });
       }
       if (steps.length) {
-        await Step.bulkCreate(steps.map((s, idx) => ({ 
-          recipe_id: recipe.id, 
-          step_number: s.step_number || idx + 1, 
-          description: s.description, 
-          image_url: s.image_url 
+        await Step.bulkCreate(steps.map((s, idx) => ({
+          recipe_id: recipe.id,
+          step_number: s.step_number || idx + 1,
+          description: s.description,
+          image_url: s.image_url
         })), { transaction: t });
       }
       if (categories.length) {
@@ -242,9 +242,9 @@ const rc = {
 
       await t.commit();
       res.status(201).json(await Recipe.findByPk(recipe.id, { include: getFullInclude() }));
-    } catch (e) { 
+    } catch (e) {
       await t.rollback();
-      res.status(500).json({ message: 'Ошибка создания', error: e.message }); 
+      res.status(500).json({ message: 'Ошибка создания', error: e.message });
     }
   },
 
@@ -253,7 +253,7 @@ const rc = {
       const r = await Recipe.findByPk(req.params.id);
       if (!r) return res.status(404).json({ message: 'Рецепт не найден' });
       if (Number(r.user_id) !== req.user.id) return res.status(403).json({ message: 'Только автор может редактировать' });
-      
+
       if (req.body.proteins || req.body.fats || req.body.carbohydrates) {
         req.body.is_ai_pfc = false;
       }
@@ -293,18 +293,18 @@ const rc = {
 
   exportIngredients: async (req, res) => {
     try {
-      const r = await Recipe.findByPk(req.params.id, { 
-        include: [{ 
-          model: Ingredient, 
-          as: 'Ingredients', 
+      const r = await Recipe.findByPk(req.params.id, {
+        include: [{
+          model: Ingredient,
+          as: 'Ingredients',
           through: { attributes: ['quantity', 'note'] },
           include: [{ model: Unit, as: 'Unit' }]
-        }] 
+        }]
       });
       if (!r) return res.status(404).json({ message: 'Рецепт не найден' });
       let txt = `Список продуктов: ${r.title}\n\n`;
-      r.Ingredients.forEach(i => { 
-        txt += `- ${i.name}${i.RecipeIngredient.quantity ? ' — ' + i.RecipeIngredient.quantity : ''} ${i.Unit?.short_name || ''}${i.RecipeIngredient.note ? ' (' + i.RecipeIngredient.note + ')' : ''}\n`; 
+      r.Ingredients.forEach(i => {
+        txt += `- ${i.name}${i.RecipeIngredient.quantity ? ' — ' + i.RecipeIngredient.quantity : ''} ${i.Unit?.short_name || ''}${i.RecipeIngredient.note ? ' (' + i.RecipeIngredient.note + ')' : ''}\n`;
       });
       res.type('text/plain; charset=utf-8').send(txt);
     } catch (e) { res.status(500).json({ message: 'Ошибка', error: e.message }); }
@@ -373,14 +373,14 @@ const rc = {
       }
 
       // 2. Формируем условия поиска (только публичные + исключаем просмотренное/лайкнутое)
-      const whereClause = { 
+      const whereClause = {
         is_private: false,
-        ...(allExcludedIds.length > 0 && { id: { [Op.notIn]: allExcludedIds } }) 
+        ...(allExcludedIds.length > 0 && { id: { [Op.notIn]: allExcludedIds } })
       };
 
       // 3. Формируем динамическую сортировку
       let orderClause = [];
-      
+
       if (catIds.length > 0) {
         // Используем мультипликативную случайность: RANDOM() * (1 + количество совпадений).
         // Это дает максимальную динамику: даже идеальное совпадение может уступить место 
@@ -395,7 +395,7 @@ const rc = {
       } else {
         orderClause.push(fn('RANDOM'));
       }
-      
+
       // 4. Двухэтапная выборка
       const recipeIdsResult = await Recipe.findAll({
         where: whereClause,

@@ -54,10 +54,10 @@ const metaController = {
       const where = search
         ? { name: { [Op.iLike]: `%${search}%` } }
         : {};
-      res.json(await Ingredient.findAll({ 
-        where, 
+      res.json(await Ingredient.findAll({
+        where,
         include: [{ model: Unit, as: 'Unit' }],
-        order: [['name', 'ASC']] 
+        order: [['name', 'ASC']]
       }));
     } catch (err) {
       res.status(500).json({ message: 'Ошибка', error: err.message });

@@ -133,7 +133,7 @@ router.post('/password-recovery', c.passwordRecovery);
  *       200: { description: Пароль изменён }
  */
 router.post('/reset-password', c.resetPassword);
- 
+
 /**
  * @swagger
  * /auth/verify-email:

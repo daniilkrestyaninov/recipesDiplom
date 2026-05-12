@@ -55,7 +55,23 @@ router.patch('/me', auth, c.updateMe);
 router.delete('/me', auth, c.deleteMe);
 
 /** @swagger
+ * /users/search:
+ *   get:
+ *     summary: Поиск пользователей
+ *     tags: [Users]
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Список найденных пользователей }
+ */
+router.get('/search', c.search);
+
+/** @swagger
  * /users/{id}:
+
  *   get:
  *     summary: Публичный профиль (с рецептами и статистикой)
  *     tags: [Users]

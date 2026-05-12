@@ -1,5 +1,7 @@
 const { User, Role, Recipe, Subscription, Like, Favorite, Comment,
   CookedRecipe, RefreshToken } = require('../models');
+const { Op } = require('sequelize');
+
 
 const userController = {
   // GET /users/me
@@ -97,6 +99,28 @@ const userController = {
       res.status(500).json({ message: 'Ошибка', error: err.message });
     }
   },
+  // GET /users/search?q=...
+  search: async (req, res) => {
+    try {
+      const { q } = req.query;
+      if (!q) return res.json([]);
+      
+      const users = await User.findAll({
+        where: {
+          [Op.or]: [
+            { username: { [Op.iLike]: `%${q}%` } },
+            { name: { [Op.iLike]: `%${q}%` } }
+          ]
+        },
+        attributes: ['id', 'username', 'name', 'avatar_url', 'bio'],
+        limit: 20
+      });
+      res.json(users);
+    } catch (err) {
+      res.status(500).json({ message: 'Ошибка поиска', error: err.message });
+    }
+  },
 };
+
 
 module.exports = userController;

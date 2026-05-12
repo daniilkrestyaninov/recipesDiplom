@@ -18,26 +18,27 @@ async function initBucket() {
     if (!exists) {
       await minioClient.makeBucket(bucketName, 'us-east-1');
       console.log(`Корзина ${bucketName} создана.`);
-      
-      // Настройка публичного доступа на чтение (чтобы отдавать картинки по URL)
-      const policy = {
-        Version: '2012-10-17',
-        Statement: [
-          {
-            Action: ['s3:GetObject'],
-            Effect: 'Allow',
-            Principal: { AWS: ['*'] },
-            Resource: [`arn:aws:s3:::${bucketName}/*`],
-          },
-        ],
-      };
-      await minioClient.setBucketPolicy(bucketName, JSON.stringify(policy));
-      console.log(`Политика публичного доступа для корзины ${bucketName} установлена.`);
     }
+    
+    // Настройка публичного доступа на чтение (чтобы отдавать картинки по URL)
+    const policy = {
+      Version: '2012-10-17',
+      Statement: [
+        {
+          Action: ['s3:GetObject'],
+          Effect: 'Allow',
+          Principal: { AWS: ['*'] },
+          Resource: [`arn:aws:s3:::${bucketName}/*`],
+        },
+      ],
+    };
+    await minioClient.setBucketPolicy(bucketName, JSON.stringify(policy));
+    console.log(`Политика публичного доступа для корзины ${bucketName} установлена/обновлена.`);
   } catch (error) {
     console.error('Ошибка инициализации MinIO:', error);
   }
 }
+
 
 initBucket();
 

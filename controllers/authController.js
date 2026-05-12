@@ -43,7 +43,7 @@ const authController = {
 
       const hashed = await bcrypt.hash(password, SALT_ROUNDS);
       const verification_code = Math.floor(100000 + Math.random() * 900000).toString();
-      
+
       const user = await User.create({
         username, name, email,
         password: hashed,
@@ -55,9 +55,9 @@ const authController = {
 
       await emailService.sendVerificationEmail(email, verification_code);
 
-      res.status(201).json({ 
-        message: 'Регистрация успешна. Код подтверждения отправлен на email.', 
-        userId: user.id 
+      res.status(201).json({
+        message: 'Регистрация успешна. Код подтверждения отправлен на email.',
+        userId: user.id
       });
     } catch (err) {
       res.status(500).json({ message: 'Ошибка при регистрации', error: err.message });
