@@ -14,6 +14,7 @@ const RefreshToken = require('./RefreshToken');
 const PersonalNote = require('./PersonalNote');
 const CookedRecipe = require('./CookedRecipe');
 const CommentLike = require('./CommentLike');
+const Notification = require('./Notification');
 const Report = require('./Report');
 
 // ── User & Role ──────────────────────────────────────────────
@@ -129,6 +130,13 @@ Report.belongsTo(User, { foreignKey: 'reporter_id', as: 'Reporter' });
 Report.belongsTo(User, { foreignKey: 'reported_user_id', as: 'ReportedUser' });
 Report.belongsTo(Recipe, { foreignKey: 'recipe_id', as: 'ReportedRecipe' });
 
+// ── Notifications ────────────────────────────────────────────
+User.hasMany(Notification, { foreignKey: 'user_id', as: 'Notifications' });
+Notification.belongsTo(User, { foreignKey: 'user_id', as: 'User' });
+Notification.belongsTo(User, { foreignKey: 'actor_id', as: 'Actor' });
+Notification.belongsTo(Recipe, { foreignKey: 'recipe_id', as: 'Recipe' });
+Notification.belongsTo(Comment, { foreignKey: 'comment_id', as: 'Comment' });
+
 module.exports = {
   sequelize,
   User,
@@ -152,4 +160,5 @@ module.exports = {
   CookedRecipe,
   CommentLike,
   Report,
+  Notification,
 };

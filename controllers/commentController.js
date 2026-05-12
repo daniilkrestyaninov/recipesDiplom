@@ -1,4 +1,4 @@
-const { Comment, User, CommentLike } = require('../models');
+const { Comment, User, CommentLike, Notification, Recipe } = require('../models');
 
 const cc = {
   // GET /recipes/:id/comments
@@ -60,6 +60,38 @@ const cc = {
       const plain = full.get({ plain: true });
       plain.likeCount = 0;
       plain.isLiked = false;
+
+      // Notification logic
+      try {
+        if (parent_comment_id) {
+          // Это ответ на комментарий
+          const parentComment = await Comment.findByPk(parent_comment_id);
+          if (parentComment && parentComment.user_id !== req.user.id) {
+            await Notification.create({
+              user_id: parentComment.user_id,
+              actor_id: req.user.id,
+              type: 'REPLY',
+              recipe_id: Number(req.params.id),
+              comment_id: comment.id
+            });
+          }
+        } else {
+          // Это новый комментарий под постом
+          const recipe = await Recipe.findByPk(req.params.id);
+          if (recipe && recipe.user_id !== req.user.id) {
+            await Notification.create({
+              user_id: recipe.user_id,
+              actor_id: req.user.id,
+              type: 'COMMENT',
+              recipe_id: recipe.id,
+              comment_id: comment.id
+            });
+          }
+        }
+      } catch (notifyError) {
+        console.error('Ошибка создания уведомления:', notifyError);
+      }
+
       res.status(201).json(plain);
     } catch (e) { res.status(500).json({ message: 'Ошибка', error: e.message }); }
   },

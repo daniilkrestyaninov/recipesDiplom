@@ -1,6 +1,6 @@
 const { Recipe, User, Ingredient, RecipeIngredient, RecipeCategory,
   Step, NationalKitchen, Category, Celebration, TypeCooking, Like,
-  Subscription, PersonalNote, CookedRecipe, Comment, Unit, sequelize } = require('../models');
+  Subscription, PersonalNote, CookedRecipe, Comment, Unit, Notification, sequelize } = require('../models');
 const { Op, fn, col } = require('sequelize');
 const geminiService = require('../services/geminiService');
 
@@ -241,6 +241,25 @@ const rc = {
       }
 
       await t.commit();
+
+      // Notification for followers (Async, after commit)
+      if (!recipe.is_private) {
+        try {
+          const followers = await Subscription.findAll({ where: { following_id: req.user.id } });
+          const notifications = followers.map(f => ({
+            user_id: f.follower_id,
+            actor_id: req.user.id,
+            type: 'NEW_POST',
+            recipe_id: recipe.id
+          }));
+          if (notifications.length) {
+            await Notification.bulkCreate(notifications);
+          }
+        } catch (err) {
+          console.error('Ошибка создания уведомлений для подписчиков:', err);
+        }
+      }
+
       res.status(201).json(await Recipe.findByPk(recipe.id, { include: getFullInclude() }));
     } catch (e) {
       await t.rollback();

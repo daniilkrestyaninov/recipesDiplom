@@ -1,4 +1,4 @@
-const { User, Subscription, Like, Favorite, Recipe } = require('../models');
+const { User, Subscription, Like, Favorite, Recipe, Notification } = require('../models');
 
 const sc = {
   follow: async (req, res) => {
@@ -9,6 +9,14 @@ const sc = {
       if (await Subscription.findOne({ where: { follower_id: req.user.id, following_id: fid } }))
         return res.status(400).json({ message: 'Уже подписан' });
       await Subscription.create({ follower_id: req.user.id, following_id: fid, subscribed_at: new Date() });
+      
+      // Notification
+      await Notification.create({
+        user_id: fid,
+        actor_id: req.user.id,
+        type: 'FOLLOW'
+      });
+
       res.status(201).json({ message: 'Подписка оформлена' });
     } catch (e) { res.status(500).json({ message: 'Ошибка', error: e.message }); }
   },
@@ -46,6 +54,18 @@ const sc = {
       if (await Like.findOne({ where: { user_id: req.user.id, recipe_id: req.params.id } }))
         return res.status(400).json({ message: 'Уже лайкнут' });
       await Like.create({ user_id: req.user.id, recipe_id: req.params.id });
+      
+      // Notification
+      const recipe = await Recipe.findByPk(req.params.id);
+      if (recipe && recipe.user_id !== req.user.id) {
+        await Notification.create({
+          user_id: recipe.user_id,
+          actor_id: req.user.id,
+          type: 'LIKE',
+          recipe_id: recipe.id
+        });
+      }
+
       res.status(201).json({ message: 'Лайк добавлен' });
     } catch (e) { res.status(500).json({ message: 'Ошибка', error: e.message }); }
   },
