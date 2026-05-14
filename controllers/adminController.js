@@ -20,7 +20,14 @@ const admin = {
         include: [{ model: Role, attributes: ['name'] }],
         order: [['created_at', 'DESC']],
       });
-      res.json(users);
+      
+      const mappedUsers = users.map(u => {
+        const userData = u.toJSON();
+        userData.role = userData.Role?.name || 'user';
+        return userData;
+      });
+      
+      res.json(mappedUsers);
     } catch (e) { res.status(500).json({ message: 'Ошибка', error: e.message }); }
   },
 
@@ -50,7 +57,15 @@ const admin = {
         });
       }
 
-      res.json({ message: 'Профиль пользователя обновлен', user });
+      const updatedUser = await User.findByPk(user.id, {
+        attributes: { exclude: ['password', 'password_reset_code', 'password_reset_expires'] },
+        include: [{ model: Role, attributes: ['name'] }],
+      });
+
+      const userData = updatedUser.toJSON();
+      userData.role = userData.Role?.name || 'user';
+
+      res.json({ message: 'Профиль пользователя обновлен', user: userData });
     } catch (e) { res.status(500).json({ message: 'Ошибка', error: e.message }); }
   },
 
@@ -422,6 +437,35 @@ const admin = {
       res.json({ message: `Удалено рецептов: ${deleted}` });
     } catch (e) {
       res.status(500).json({ message: 'Ошибка при массовом удалении рецептов', error: e.message });
+    }
+  },
+
+  // POST /admin/notifications/broadcast
+  broadcastNotification: async (req, res) => {
+    try {
+      const { title, body, message } = req.body;
+      const finalBody = body || message;
+      if (!finalBody) return res.status(400).json({ message: 'Текст уведомления обязателен' });
+
+      const users = await User.findAll({ attributes: ['id'] });
+      
+      const notifications = users.map(u => ({
+        user_id: u.id,
+        type: 'SYSTEM',
+        message: title ? `${title}: ${finalBody}` : finalBody,
+        is_read: false
+      }));
+
+      await Notification.bulkCreate(notifications);
+      await AuditLog.create({ 
+        admin_id: req.user.id, 
+        action: 'BROADCAST_NOTIFICATION', 
+        details: { title, body: finalBody } 
+      });
+
+      res.json({ message: `Уведомление отправлено ${users.length} пользователям` });
+    } catch (e) {
+      res.status(500).json({ message: 'Ошибка при рассылке', error: e.message });
     }
   }
 };

@@ -1,5 +1,5 @@
 const { User, Role, Recipe, Subscription, Like, Favorite, Comment,
-  CookedRecipe, RefreshToken, CommentLike, Report, PersonalNote, Notification } = require('../models');
+  CookedRecipe, RefreshToken, CommentLike, Report, PersonalNote, Notification, VerificationRequest } = require('../models');
 const { Op } = require('sequelize');
 
 
@@ -135,6 +135,25 @@ const userController = {
       res.json(users);
     } catch (err) {
       res.status(500).json({ message: 'Ошибка поиска', error: err.message });
+    }
+  },
+
+  // POST /users/verify-request
+  requestVerification: async (req, res) => {
+    try {
+      const { full_name, info } = req.body;
+      if (!full_name) return res.status(400).json({ message: 'ФИО обязательно' });
+
+      const request = await VerificationRequest.create({
+        user_id: req.user.id,
+        full_name,
+        info,
+        status: 'pending'
+      });
+
+      res.status(201).json({ message: 'Заявка отправлена', request });
+    } catch (err) {
+      res.status(500).json({ message: 'Ошибка', error: err.message });
     }
   },
 };

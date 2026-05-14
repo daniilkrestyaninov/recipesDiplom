@@ -162,4 +162,24 @@ router.get('/:id/following', social.getFollowing);
  *       200: { description: Список рецептов пользователя }
  */
 router.get('/:id/recipes', maybeAuth, c.getUserRecipes);
+
+/** @swagger
+ * /users/verify-request:
+ *   post:
+ *     summary: Подать заявку на верификацию
+ *     tags: [Users]
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               full_name: { type: string }
+ *               info: { type: string }
+ *     responses:
+ *       201: { description: Заявка создана }
+ */
+router.post('/verify-request', auth, c.requestVerification);
+
 module.exports = router;
