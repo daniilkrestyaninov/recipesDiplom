@@ -20,6 +20,8 @@ const MenuOfTheWeek = require('./MenuOfTheWeek');
 const VerificationRequest = require('./VerificationRequest');
 const AuditLog = require('./AuditLog');
 const DeviceToken = require('./DeviceToken');
+const DietPlan = require('./DietPlan');
+const DietPlanRecipe = require('./DietPlanRecipe');
 
 // ── User & Role ──────────────────────────────────────────────
 Role.hasMany(User, { foreignKey: 'role_id' });
@@ -157,6 +159,16 @@ Notification.belongsTo(User, { foreignKey: 'actor_id', as: 'Actor' });
 Notification.belongsTo(Recipe, { foreignKey: 'recipe_id', as: 'Recipe' });
 Notification.belongsTo(Comment, { foreignKey: 'comment_id', as: 'Comment' });
 
+// ── Diet Plans ───────────────────────────────────────────────
+User.hasMany(DietPlan, { foreignKey: 'user_id', as: 'DietPlans' });
+DietPlan.belongsTo(User, { foreignKey: 'user_id', as: 'Author' });
+
+DietPlan.hasMany(DietPlanRecipe, { foreignKey: 'diet_plan_id', as: 'DayRecipes', onDelete: 'CASCADE' });
+DietPlanRecipe.belongsTo(DietPlan, { foreignKey: 'diet_plan_id' });
+
+Recipe.hasMany(DietPlanRecipe, { foreignKey: 'recipe_id' });
+DietPlanRecipe.belongsTo(Recipe, { foreignKey: 'recipe_id', as: 'Recipe' });
+
 module.exports = {
   sequelize,
   User,
@@ -185,4 +197,6 @@ module.exports = {
   VerificationRequest,
   AuditLog,
   DeviceToken,
+  DietPlan,
+  DietPlanRecipe,
 };

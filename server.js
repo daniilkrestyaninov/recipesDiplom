@@ -79,6 +79,7 @@ app.use('/meta', require('./routes/metaRoutes'));
 app.use('/admin', require('./routes/adminRoutes'));
 app.use('/notifications', require('./routes/notificationRoutes'));
 app.use('/reports', require('./routes/reportRoutes'));
+app.use('/diet-plans', require('./routes/dietPlanRoutes'));
 app.use('/sync', require('./routes/syncRoutes'));
 app.use('/upload', require('./routes/uploadRoutes'));
 app.use('/tools', require('./routes/toolsRoutes'));
