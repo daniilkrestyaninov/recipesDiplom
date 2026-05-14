@@ -451,6 +451,7 @@ const admin = {
       
       const notifications = users.map(u => ({
         user_id: u.id,
+        actor_id: req.user.id,
         type: 'SYSTEM',
         message: title ? `${title}: ${finalBody}` : finalBody,
         is_read: false
@@ -465,6 +466,7 @@ const admin = {
 
       res.json({ message: `Уведомление отправлено ${users.length} пользователям` });
     } catch (e) {
+      console.error('Broadcast Error:', e);
       res.status(500).json({ message: 'Ошибка при рассылке', error: e.message });
     }
   }
