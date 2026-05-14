@@ -15,12 +15,17 @@ try {
   if (fs.existsSync(serviceAccountPath)) {
     const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
     
-    // Принудительная очистка ключа от лишних пробелов и переносов, которые часто ломают подпись
+    // Принудительная очистка ключа от лишних пробелов и переносов
     if (serviceAccount.private_key) {
-      serviceAccount.private_key = serviceAccount.private_key
-        .replace(/\\n/g, '\n') // заменяем экранированные \n на реальные переносы для нормализации
-        .replace(/\n/g, '\n') // на всякий случай
-        .trim();
+      let key = serviceAccount.private_key;
+      // Если ключ пришел как одна строка без переносов, но с заполнителями \n
+      key = key.replace(/\\n/g, '\n');
+      // Если там всё еще нет реальных переносов строк, но есть заголовки, пробуем восстановить структуру
+      if (!key.includes('\n')) {
+          key = key.replace('-----BEGIN PRIVATE KEY-----', '-----BEGIN PRIVATE KEY-----\n')
+                   .replace('-----END PRIVATE KEY-----', '\n-----END PRIVATE KEY-----');
+      }
+      serviceAccount.private_key = key.trim();
     }
     
     if (!adminFirebase.apps.length) {
