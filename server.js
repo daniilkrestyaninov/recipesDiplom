@@ -8,13 +8,29 @@ require('dotenv').config();
 // ── Инициализация Firebase Admin SDK ─────────────────────────
 try {
   const adminFirebase = require('firebase-admin');
-  const serviceAccount = require('./diplom-f35d3-firebase-adminsdk-fbsvc-8ee5cdf97b.json');
+  const fs = require('fs');
+  const path = require('path');
   
-  if (!adminFirebase.apps.length) {
-    adminFirebase.initializeApp({
-      credential: adminFirebase.credential.cert(serviceAccount)
-    });
-    console.log('✅ Firebase Admin успешно инициализирован');
+  const serviceAccountPath = path.join(__dirname, 'diplom-f35d3-firebase-adminsdk-fbsvc-8ee5cdf97b.json');
+  if (fs.existsSync(serviceAccountPath)) {
+    const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+    
+    // Принудительная очистка ключа от лишних пробелов и переносов, которые часто ломают подпись
+    if (serviceAccount.private_key) {
+      serviceAccount.private_key = serviceAccount.private_key
+        .replace(/\\n/g, '\n') // заменяем экранированные \n на реальные переносы для нормализации
+        .replace(/\n/g, '\n') // на всякий случай
+        .trim();
+    }
+    
+    if (!adminFirebase.apps.length) {
+      adminFirebase.initializeApp({
+        credential: adminFirebase.credential.cert(serviceAccount)
+      });
+      console.log('✅ Firebase Admin успешно инициализирован');
+    }
+  } else {
+    console.error('❌ Файл ключа Firebase не найден по пути:', serviceAccountPath);
   }
 } catch (error) {
   console.error('❌ Ошибка инициализации Firebase:', error.message);
