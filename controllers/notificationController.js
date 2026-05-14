@@ -106,6 +106,7 @@ const notificationController = {
         await device.update({ user_id });
       }
 
+      console.log(`Registering device: token=${token.substring(0, 10)}..., user_id=${user_id}`);
       res.json({ message: 'Устройство зарегистрировано', device });
     } catch (err) {
       res.status(500).json({ message: 'Ошибка при регистрации устройства', error: err.message });
