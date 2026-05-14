@@ -1,5 +1,6 @@
-const { User, Recipe, Comment, Like, Role, Category, NationalKitchen, Report, sequelize, MenuOfTheWeek, VerificationRequest, AuditLog, Notification } = require('../models');
+const { User, Recipe, Comment, Like, Role, Category, NationalKitchen, Report, sequelize, MenuOfTheWeek, VerificationRequest, AuditLog, Notification, DeviceToken } = require('../models');
 const { Op } = require('sequelize');
+const adminFirebase = require('firebase-admin');
 
 const admin = {
   // GET /admin/stats
@@ -322,12 +323,9 @@ const admin = {
       }));
       await Notification.bulkCreate(notifications);
 
-      // 2. Отправляем Push-уведомление через Firebase (FCM)
+        // 2. Отправляем Push-уведомление через Firebase (FCM)
       let pushSent = false;
       try {
-        const adminFirebase = require('firebase-admin');
-        const { DeviceToken } = require('../models');
-        
         if (adminFirebase.apps.length > 0) {
           // Получаем все токены из БД
           const deviceTokens = await DeviceToken.findAll({ attributes: ['token'] });
