@@ -18,13 +18,15 @@ const sc = {
         type: 'FOLLOW'
       });
 
-      // Push-уведомление о новой подписке
-      await notificationController.sendPushToUser(
-        fid, 
-        'Новый подписчик!', 
-        `${req.user.username} подписался на ваши обновления.`,
-        { type: 'FOLLOW', follower_id: String(req.user.id) }
-      );
+      // Push-уведомление о новой подписке (только если не сам на себя)
+      if (fid !== req.user.id) {
+        await notificationController.sendPushToUser(
+          fid, 
+          'Новый подписчик!', 
+          `${req.user.username} подписался на ваши обновления.`,
+          { type: 'FOLLOW', follower_id: String(req.user.id) }
+        );
+      }
 
       res.status(201).json({ message: 'Подписка оформлена' });
     } catch (e) { res.status(500).json({ message: 'Ошибка', error: e.message }); }

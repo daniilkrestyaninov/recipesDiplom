@@ -86,11 +86,32 @@ const rc = {
       report.status = status;
       await report.save();
 
+      // Уведомляем автора жалобы (репортера)
+      try {
+        let statusText = status === 'resolved' ? 'Принята' : (status === 'dismissed' ? 'Отклонена' : 'Рассмотрена');
+        await notificationController.sendPushToUser(
+          report.reporter_id, 
+          'Обновление по жалобе', 
+          `Ваша жалоба была рассмотрена. Статус: ${statusText}.`,
+          { type: 'REPORT_STATUS', report_id: String(report.id), status }
+        );
+      } catch (e) { console.error('Error sending report push:', e.message); }
+
       // Если жалоба "Принята" (resolved) и это рецепт — автоматически удаляем его
       if (status === 'resolved' && report.type === 'recipe' && report.recipe_id) {
         const recipe = await Recipe.findByPk(report.recipe_id);
         if (recipe) {
-          await recipe.destroy(); // Физическое удаление или добавьте is_deleted = true если нужно
+          const authorId = recipe.user_id;
+          const recipeTitle = recipe.title;
+          await recipe.destroy();
+
+          // Уведомляем автора рецепта, что его удалили по жалобе
+          await notificationController.sendPushToUser(
+            authorId, 
+            'Рецепт удален', 
+            `Ваш рецепт "${recipeTitle}" был удален по результатам жалобы.`,
+            { type: 'RECIPE_DELETED_BY_REPORT' }
+          );
         }
       }
 

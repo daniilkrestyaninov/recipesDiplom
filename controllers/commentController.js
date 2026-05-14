@@ -75,13 +75,15 @@ const cc = {
               recipe_id: Number(req.params.id),
               comment_id: comment.id
             });
-            // Push-уведомление об ответе
-            await notificationController.sendPushToUser(
-              parentComment.user_id, 
-              'Новый ответ', 
-              `${req.user.username} ответил на ваш комментарий.`,
-              { type: 'REPLY', recipe_id: String(req.params.id) }
-            );
+            // Push-уведомление об ответе (только если не сам себе)
+            if (parentComment.user_id !== req.user.id) {
+              await notificationController.sendPushToUser(
+                parentComment.user_id, 
+                'Новый ответ', 
+                `${req.user.username} ответил на ваш комментарий.`,
+                { type: 'REPLY', recipe_id: String(req.params.id) }
+              );
+            }
           }
         } else {
           // Это новый комментарий под постом
@@ -94,7 +96,7 @@ const cc = {
               recipe_id: recipe.id,
               comment_id: comment.id
             });
-            // Push-уведомление автору рецепта
+            // Push-уведомление автору рецепта (уже есть проверка user_id !== req.user.id выше)
             await notificationController.sendPushToUser(
               recipe.user_id, 
               'Новый комментарий', 
