@@ -305,43 +305,58 @@ const admin = {
   // POST /admin/notifications/broadcast
   broadcastNotification: async (req, res) => {
     try {
-      const { message } = req.body;
-      if (!message) return res.status(400).json({ message: 'Текст сообщения обязателен' });
+      const { title, body, message } = req.body;
+      const finalTitle = title || 'Системное уведомление';
+      const finalBody = body || message;
+      
+      if (!finalBody) return res.status(400).json({ message: 'Текст сообщения обязателен' });
 
-      // 1. Сохраняем уведомления во внутренней базе для авторизованных пользователей
+      // 1. Сохраняем уведомления в БД для всех пользователей
       const users = await User.findAll({ attributes: ['id'] });
       const notifications = users.map(u => ({
         user_id: u.id,
         actor_id: req.user.id,
         type: 'SYSTEM',
-        message: message
+        message: title ? `${title}: ${finalBody}` : finalBody,
+        is_read: false
       }));
       await Notification.bulkCreate(notifications);
 
-      // 2. Отправляем Push-уведомление через Firebase Cloud Messaging (FCM) всем устройствам
+      // 2. Отправляем Push-уведомление через Firebase (FCM) всем устройствам через топик
       let pushSent = false;
       try {
         const adminFirebase = require('firebase-admin');
         if (adminFirebase.apps.length > 0) {
-          // Если Firebase инициализирован, отправляем в топик, на который подписаны все мобильные клиенты
           await adminFirebase.messaging().send({
             topic: 'global_broadcast',
             notification: {
-              title: 'Системное уведомление',
-              body: message
+              title: finalTitle,
+              body: finalBody
+            },
+            data: {
+              type: 'SYSTEM',
+              title: finalTitle,
+              body: finalBody
             }
           });
           pushSent = true;
         }
       } catch (fcmError) {
         console.error('Ошибка отправки FCM:', fcmError);
-        // Не прерываем запрос, если Firebase не настроен
       }
 
-      await AuditLog.create({ admin_id: req.user.id, action: 'BROADCAST_NOTIFICATION', details: { message, count: users.length, pushSent } });
+      await AuditLog.create({ 
+        admin_id: req.user.id, 
+        action: 'BROADCAST_NOTIFICATION', 
+        details: { title: finalTitle, body: finalBody, count: users.length, pushSent } 
+      });
 
-      res.json({ message: `Уведомление разослано ${users.length} пользователям. Push-статус: ${pushSent ? 'отправлено' : 'отключено/ошибка'}` });
+      res.json({ 
+        message: `Уведомление разослано ${users.length} пользователям.`,
+        pushStatus: pushSent ? 'отправлено' : 'ошибка/не настроено'
+      });
     } catch (e) {
+      console.error('Broadcast error:', e);
       res.status(500).json({ message: 'Ошибка при рассылке', error: e.message });
     }
   },
@@ -440,35 +455,6 @@ const admin = {
     }
   },
 
-  // POST /admin/notifications/broadcast
-  broadcastNotification: async (req, res) => {
-    try {
-      const { title, body, message } = req.body;
-      const finalBody = body || message;
-      if (!finalBody) return res.status(400).json({ message: 'Текст уведомления обязателен' });
-
-      const users = await User.findAll({ attributes: ['id'] });
-      
-      const notifications = users.map(u => ({
-        user_id: u.id,
-        actor_id: req.user.id,
-        type: 'SYSTEM',
-        message: title ? `${title}: ${finalBody}` : finalBody,
-        is_read: false
-      }));
-
-      await Notification.bulkCreate(notifications);
-      await AuditLog.create({ 
-        admin_id: req.user.id, 
-        action: 'BROADCAST_NOTIFICATION', 
-        details: { title, body: finalBody } 
-      });
-
-      res.json({ message: `Уведомление отправлено ${users.length} пользователям` });
-    } catch (e) {
-      console.error('Broadcast Error:', e);
-      res.status(500).json({ message: 'Ошибка при рассылке', error: e.message });
-    }
   }
 };
 
