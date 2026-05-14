@@ -1,6 +1,7 @@
 const { User, Recipe, Comment, Like, Role, Category, NationalKitchen, Report, sequelize, MenuOfTheWeek, VerificationRequest, AuditLog, Notification, DeviceToken } = require('../models');
 const { Op } = require('sequelize');
 const adminFirebase = require('firebase-admin');
+const notificationController = require('./notificationController');
 
 const admin = {
   // GET /admin/stats
@@ -323,58 +324,38 @@ const admin = {
       }));
       await Notification.bulkCreate(notifications);
 
-        // 2. Отправляем Push-уведомление через Firebase (FCM)
-      let pushSent = false;
-      try {
-        if (adminFirebase.apps.length > 0) {
-          // Получаем все токены из БД
-          const deviceTokens = await DeviceToken.findAll({ attributes: ['token'] });
-          const tokens = deviceTokens.map(dt => dt.token);
-
-          if (tokens.length > 0) {
-            const response = await adminFirebase.messaging().sendEachForMulticast({
-              tokens: tokens,
-              notification: {
-                title: finalTitle,
-                body: finalBody
-              },
-              data: {
-                type: 'SYSTEM',
-                title: finalTitle,
-                body: finalBody
-              },
-              android: {
-                priority: 'high',
-                notification: {
-                  channelId: 'umami_notifications',
-                  priority: 'high'
-                }
-              }
-            });
-            console.log(`FCM Multicast: ${response.successCount} success, ${response.failureCount} failure`);
-            pushSent = response.successCount > 0;
+      // 2. Отправляем Push-уведомление через Firebase (только Topic, чтобы избежать дублей)
+      if (adminFirebase.apps.length > 0) {
+        await adminFirebase.messaging().send({
+          topic: 'global_broadcast',
+          notification: {
+            title: finalTitle,
+            body: finalBody
+          },
+          android: {
+            priority: 'high',
+            notification: {
+              channelId: 'umami_notifications',
+              priority: 'high'
+            }
+          },
+          data: {
+            type: 'SYSTEM',
+            title: finalTitle,
+            body: finalBody
           }
-
-          // Также дублируем в топик (на всякий случай)
-          await adminFirebase.messaging().send({
-            topic: 'global_broadcast',
-            notification: { title: finalTitle, body: finalBody },
-            data: { type: 'SYSTEM' }
-          }).catch(e => console.error('Topic send error:', e.message));
-        }
-      } catch (fcmError) {
-        console.error('Ошибка отправки FCM:', fcmError);
+        }).then(() => console.log('FCM Topic broadcast sent successfully'))
+          .catch(e => console.error('FCM Topic Error:', e.message));
       }
 
       await AuditLog.create({ 
         admin_id: req.user.id, 
         action: 'BROADCAST_NOTIFICATION', 
-        details: { title: finalTitle, body: finalBody, count: users.length, pushSent } 
+        details: { title: finalTitle, body: finalBody, count: users.length } 
       });
 
       res.json({ 
-        message: `Уведомление разослано ${users.length} пользователям.`,
-        pushStatus: pushSent ? 'отправлено' : 'ошибка/не настроено'
+        message: `Уведомление разослано ${users.length} пользователям.`
       });
     } catch (e) {
       console.error('Broadcast error:', e);
@@ -410,6 +391,9 @@ const admin = {
 
       if (status === 'approved') {
         await User.update({ is_verified: true }, { where: { id: vReq.user_id } });
+        await notificationController.sendPushToUser(vReq.user_id, 'Профиль верифицирован!', 'Поздравляем! Ваша заявка на верификацию одобрена.');
+      } else if (status === 'rejected') {
+        await notificationController.sendPushToUser(vReq.user_id, 'Заявка отклонена', `К сожалению, ваша заявка на верификацию была отклонена. Причина: ${admin_notes || 'не указана'}`);
       }
 
       await AuditLog.create({ admin_id: req.user.id, action: 'PROCESS_VERIFICATION', entity: 'User', entity_id: vReq.user_id, details: { status } });
@@ -453,6 +437,13 @@ const admin = {
       await User.update({ is_blocked }, { where: { id: { [Op.in]: userIds } } });
       await AuditLog.create({ admin_id: req.user.id, action: 'BULK_BLOCK_USERS', details: { userIds, is_blocked } });
 
+      // Отправляем Push каждому заблокированному пользователю
+      if (is_blocked) {
+        for (const id of userIds) {
+          await notificationController.sendPushToUser(id, 'Аккаунт заблокирован', 'Ваш аккаунт был заблокирован администратором.');
+        }
+      }
+
       res.json({ message: `Статус блокировки обновлен для ${userIds.length} пользователей` });
     } catch (e) {
       res.status(500).json({ message: 'Ошибка при массовой блокировке', error: e.message });
@@ -467,8 +458,16 @@ const admin = {
         return res.status(400).json({ message: 'Необходимо передать массив recipeIds' });
       }
 
+      // Перед удалением находим авторов, чтобы уведомить их
+      const recipes = await Recipe.findAll({ where: { id: { [Op.in]: recipeIds } }, attributes: ['id', 'title', 'user_id'] });
+      
       const deleted = await Recipe.destroy({ where: { id: { [Op.in]: recipeIds } } });
       await AuditLog.create({ admin_id: req.user.id, action: 'BULK_DELETE_RECIPES', details: { recipeIds } });
+
+      // Уведомляем авторов
+      for (const recipe of recipes) {
+        await notificationController.sendPushToUser(recipe.user_id, 'Рецепт удален', `Ваш рецепт "${recipe.title}" был удален администратором.`);
+      }
 
       res.json({ message: `Удалено рецептов: ${deleted}` });
     } catch (e) {

@@ -1,4 +1,5 @@
 const { Comment, User, CommentLike, Notification, Recipe } = require('../models');
+const notificationController = require('./notificationController');
 
 const cc = {
   // GET /recipes/:id/comments
@@ -74,6 +75,13 @@ const cc = {
               recipe_id: Number(req.params.id),
               comment_id: comment.id
             });
+            // Push-уведомление об ответе
+            await notificationController.sendPushToUser(
+              parentComment.user_id, 
+              'Новый ответ', 
+              `${req.user.username} ответил на ваш комментарий.`,
+              { type: 'REPLY', recipe_id: String(req.params.id) }
+            );
           }
         } else {
           // Это новый комментарий под постом
@@ -86,6 +94,13 @@ const cc = {
               recipe_id: recipe.id,
               comment_id: comment.id
             });
+            // Push-уведомление автору рецепта
+            await notificationController.sendPushToUser(
+              recipe.user_id, 
+              'Новый комментарий', 
+              `${req.user.username} оставил отзыв о вашем рецепте "${recipe.title}".`,
+              { type: 'COMMENT', recipe_id: String(recipe.id) }
+            );
           }
         }
       } catch (notifyError) {

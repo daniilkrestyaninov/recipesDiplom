@@ -1,4 +1,5 @@
 const { Report, User, Recipe } = require('../models');
+const notificationController = require('./notificationController');
 
 const rc = {
   // POST /reports
@@ -31,6 +32,13 @@ const rc = {
         description,
         status: 'pending'
       });
+
+      // Уведомляем админов и модераторов о новой жалобе
+      const pushTitle = 'Новая жалоба';
+      const pushBody = `Поступила жалоба на ${type === 'recipe' ? 'рецепт' : 'пользователя'}: ${reason}`;
+      
+      await notificationController.sendPushToRole('Admin', pushTitle, pushBody, { report_id: String(report.id) });
+      await notificationController.sendPushToRole('Moderator', pushTitle, pushBody, { report_id: String(report.id) });
 
       res.status(201).json({ message: 'Жалоба успешно отправлена', reportId: report.id });
     } catch (e) {

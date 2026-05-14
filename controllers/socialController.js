@@ -1,4 +1,5 @@
 const { User, Subscription, Like, Favorite, Recipe, Notification } = require('../models');
+const notificationController = require('./notificationController');
 
 const sc = {
   follow: async (req, res) => {
@@ -16,6 +17,14 @@ const sc = {
         actor_id: req.user.id,
         type: 'FOLLOW'
       });
+
+      // Push-уведомление о новой подписке
+      await notificationController.sendPushToUser(
+        fid, 
+        'Новый подписчик!', 
+        `${req.user.username} подписался на ваши обновления.`,
+        { type: 'FOLLOW', follower_id: String(req.user.id) }
+      );
 
       res.status(201).json({ message: 'Подписка оформлена' });
     } catch (e) { res.status(500).json({ message: 'Ошибка', error: e.message }); }
@@ -64,6 +73,13 @@ const sc = {
           type: 'LIKE',
           recipe_id: recipe.id
         });
+        // Push-уведомление о лайке
+        await notificationController.sendPushToUser(
+          recipe.user_id, 
+          'Новая оценка', 
+          `${req.user.username} оценил ваш рецепт "${recipe.title}".`,
+          { type: 'LIKE', recipe_id: String(recipe.id) }
+        );
       }
 
       res.status(201).json({ message: 'Лайк добавлен' });

@@ -1,6 +1,7 @@
 const { User, Role, Recipe, Subscription, Like, Favorite, Comment,
   CookedRecipe, RefreshToken, CommentLike, Report, PersonalNote, Notification, VerificationRequest } = require('../models');
 const { Op } = require('sequelize');
+const notificationController = require('./notificationController');
 
 
 const userController = {
@@ -150,6 +151,9 @@ const userController = {
         info,
         status: 'pending'
       });
+
+      // Уведомляем админов
+      await notificationController.sendPushToRole('Admin', 'Новая заявка на верификацию', `Пользователь просит верифицировать профиль: ${full_name}`);
 
       res.status(201).json({ message: 'Заявка отправлена', request });
     } catch (err) {

@@ -111,6 +111,57 @@ const notificationController = {
     } catch (err) {
       res.status(500).json({ message: 'Ошибка при регистрации устройства', error: err.message });
     }
+  },
+
+  // ── Хелперы для отправки Push (вызываются из других контроллеров) ──────────────────
+  
+  sendPushToUser: async (userId, title, body, data = {}) => {
+    try {
+      const adminFirebase = require('firebase-admin');
+      if (!adminFirebase.apps.length) return;
+
+      const { DeviceToken } = require('../models');
+      const tokens = await DeviceToken.findAll({ where: { user_id: userId } });
+      if (!tokens.length) return;
+
+      const registrationTokens = tokens.map(t => t.token);
+      
+      const message = {
+        tokens: registrationTokens,
+        notification: { title, body },
+        data: { ...data, title, body, user_id: String(userId) },
+        android: {
+          priority: 'high',
+          notification: {
+            channelId: 'umami_notifications',
+            priority: 'high',
+            defaultSound: true
+          }
+        }
+      };
+
+      const response = await adminFirebase.messaging().sendEachForMulticast(message);
+      console.log(`FCM Push to User ${userId}: ${response.successCount} success, ${response.failureCount} failure`);
+      return response;
+    } catch (error) {
+      console.error('Error sending push to user:', error);
+    }
+  },
+
+  sendPushToRole: async (roleName, title, body, data = {}) => {
+    try {
+      const { User, Role } = require('../models');
+      const users = await User.findAll({
+        include: [{ model: Role, where: { name: roleName } }]
+      });
+
+      const notificationController = require('./notificationController');
+      for (const user of users) {
+        await notificationController.sendPushToUser(user.id, title, body, data);
+      }
+    } catch (error) {
+      console.error('Error sending push to role:', error);
+    }
   }
 };
 
