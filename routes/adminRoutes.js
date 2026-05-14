@@ -23,6 +23,18 @@ const isAdmin = require('../middleware/adminMiddleware');
 router.get('/stats', auth, isAdmin, admin.getStats);
 
 /** @swagger
+ * /admin/analytics:
+ *   get:
+ *     summary: Детальная аналитика для графиков
+ *     tags: [Admin]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: Данные для графиков (регистрации, рецепты, категории, топ пользователей и т.д.)
+ */
+router.get('/analytics', auth, isAdmin, admin.getAnalytics);
+
+/** @swagger
  * /admin/users:
  *   get:
  *     summary: Список всех пользователей
@@ -45,6 +57,56 @@ router.get('/users', auth, isAdmin, admin.getUsers);
  *       200: { description: Пользователь заблокирован }
  */
 router.post('/users/:id/block', auth, isAdmin, admin.blockUser);
+
+/** @swagger
+ * /admin/roles:
+ *   get:
+ *     summary: Список всех ролей
+ *     tags: [Admin]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Список ролей }
+ */
+router.get('/roles', auth, isAdmin, admin.getRoles);
+
+/** @swagger
+ * /admin/users/{id}:
+ *   patch:
+ *     summary: Редактировать пользователя
+ *     tags: [Admin]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name: { type: string }
+ *               username: { type: string }
+ *               bio: { type: string }
+ *               avatar_url: { type: string }
+ *               role_id: { type: integer }
+ *               is_blocked: { type: boolean }
+ *               is_verified: { type: boolean }
+ *     responses:
+ *       200: { description: Пользователь обновлён }
+ */
+router.patch('/users/:id', auth, isAdmin, admin.updateUser);
+
+/** @swagger
+ * /admin/users/{id}:
+ *   delete:
+ *     summary: Удалить пользователя полностью
+ *     tags: [Admin]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
+ *     responses:
+ *       200: { description: Пользователь удалён }
+ */
+router.delete('/users/:id', auth, isAdmin, admin.deleteUser);
 
 /** @swagger
  * /admin/recipes/{id}:
@@ -71,5 +133,142 @@ router.delete('/recipes/:id', auth, isAdmin, admin.deleteRecipe);
  *       200: { description: Комментарий удалён }
  */
 router.delete('/comments/:id', auth, isAdmin, admin.deleteComment);
+
+/** @swagger
+ * /admin/menu-of-week:
+ *   get:
+ *     summary: Получить меню недели
+ *     tags: [Admin]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Меню недели }
+ *   post:
+ *     summary: Добавить рецепт в меню недели
+ *     tags: [Admin]
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               day_of_week: { type: integer, description: '1-7 (Пн-Вс)' }
+ *               recipe_id: { type: integer }
+ *     responses:
+ *       201: { description: Добавлено }
+ */
+router.get('/menu-of-week', auth, isAdmin, admin.getMenuOfWeek);
+router.post('/menu-of-week', auth, isAdmin, admin.addMenuOfWeek);
+
+/** @swagger
+ * /admin/menu-of-week/{id}:
+ *   delete:
+ *     summary: Удалить рецепт из меню недели
+ *     tags: [Admin]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
+ *     responses:
+ *       200: { description: Удалено }
+ */
+router.delete('/menu-of-week/:id', auth, isAdmin, admin.removeMenuOfWeek);
+
+/** @swagger
+ * /admin/notifications/broadcast:
+ *   post:
+ *     summary: Отправить массовое уведомление
+ *     tags: [Admin]
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               message: { type: string }
+ *     responses:
+ *       200: { description: Уведомления отправлены }
+ */
+router.post('/notifications/broadcast', auth, isAdmin, admin.broadcastNotification);
+
+/** @swagger
+ * /admin/verifications:
+ *   get:
+ *     summary: Список заявок на верификацию
+ *     tags: [Admin]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Заявки }
+ */
+router.get('/verifications', auth, isAdmin, admin.getVerificationRequests);
+
+/** @swagger
+ * /admin/verifications/{id}:
+ *   patch:
+ *     summary: Обработать заявку на верификацию
+ *     tags: [Admin]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status: { type: string, enum: [approved, rejected] }
+ *               admin_notes: { type: string }
+ *     responses:
+ *       200: { description: Заявка обработана }
+ */
+router.patch('/verifications/:id', auth, isAdmin, admin.processVerificationRequest);
+
+/** @swagger
+ * /admin/audit-logs:
+ *   get:
+ *     summary: Логи действий администраторов
+ *     tags: [Admin]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Логи }
+ */
+router.get('/audit-logs', auth, isAdmin, admin.getAuditLogs);
+
+/** @swagger
+ * /admin/users/bulk-block:
+ *   post:
+ *     summary: Массовая блокировка пользователей
+ *     tags: [Admin]
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               userIds: { type: array, items: { type: integer } }
+ *               is_blocked: { type: boolean }
+ *     responses:
+ *       200: { description: Пользователи заблокированы }
+ */
+router.post('/users/bulk-block', auth, isAdmin, admin.bulkBlockUsers);
+
+/** @swagger
+ * /admin/recipes/bulk-delete:
+ *   post:
+ *     summary: Массовое удаление рецептов
+ *     tags: [Admin]
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               recipeIds: { type: array, items: { type: integer } }
+ *     responses:
+ *       200: { description: Рецепты удалены }
+ */
+router.post('/recipes/bulk-delete', auth, isAdmin, admin.bulkDeleteRecipes);
 
 module.exports = router;

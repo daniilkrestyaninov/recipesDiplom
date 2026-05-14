@@ -268,23 +268,92 @@ const rc = {
   },
 
   update: async (req, res) => {
+    const t = await sequelize.transaction();
     try {
       const r = await Recipe.findByPk(req.params.id);
-      if (!r) return res.status(404).json({ message: 'Рецепт не найден' });
-      if (Number(r.user_id) !== req.user.id) return res.status(403).json({ message: 'Только автор может редактировать' });
-
-      if (req.body.proteins || req.body.fats || req.body.carbohydrates) {
-        req.body.is_ai_pfc = false;
+      if (!r) {
+        await t.rollback();
+        return res.status(404).json({ message: 'Рецепт не найден' });
+      }
+      if (Number(r.user_id) !== req.user.id && req.user.role !== 'Admin') {
+        await t.rollback();
+        return res.status(403).json({ message: 'Только автор может редактировать' });
       }
 
+      const { title, description, difficulty, image_url, is_private, kitchen_id, celebration_id, cooking_id, portion, calorific, cooking_time, ingredients, steps, categories, proteins, fats, carbohydrates, is_generated } = req.body;
+
       // Запрещаем делать сгенерированные рецепты публичными
-      if (r.is_generated && req.body.is_private === false) {
+      if (r.is_generated && is_private === false) {
+        await t.rollback();
         return res.status(400).json({ message: 'Сгенерированные ИИ рецепты должны оставаться приватными' });
       }
 
-      await r.update(req.body);
+      // Обновляем основные поля
+      await r.update({
+        title, description, difficulty: difficulty ? String(difficulty) : r.difficulty,
+        image_url, is_private, kitchen_id, celebration_id, cooking_id, portion,
+        calorific, proteins, fats, carbohydrates, cooking_time, is_generated
+      }, { transaction: t });
+
+      // Обновляем ингредиенты (если прислали)
+      if (ingredients) {
+        console.log('Update: destroying ingredients for recipe', r.id);
+        const delIng = await RecipeIngredient.destroy({ where: { recipe_id: r.id }, transaction: t });
+        console.log('Deleted ingredients:', delIng);
+        const ingredientLinks = [];
+        for (const i of ingredients) {
+          let ingredientId = i.id;
+          if (!ingredientId && i.name) {
+            const [ing] = await Ingredient.findOrCreate({ where: { name: i.name }, defaults: { unit_id: 1 }, transaction: t });
+            ingredientId = ing.id;
+          }
+          if (ingredientId) {
+            ingredientLinks.push({
+              recipe_id: r.id,
+              ingredient_id: ingredientId,
+              quantity: String(i.quantity || ''),
+              note: i.note || ''
+            });
+          }
+        }
+        if (ingredientLinks.length) {
+            console.log('Creating new ingredients:', ingredientLinks.length);
+            await RecipeIngredient.bulkCreate(ingredientLinks, { transaction: t });
+        }
+      }
+
+      // Обновляем шаги
+      if (steps) {
+        console.log('Update: destroying steps for recipe', r.id);
+        const delStep = await Step.destroy({ where: { recipe_id: r.id }, transaction: t });
+        console.log('Deleted steps:', delStep);
+        if (steps.length) {
+            console.log('Creating new steps:', steps.length);
+            await Step.bulkCreate(steps.map((s, idx) => ({
+            recipe_id: r.id,
+            step_number: s.step_number || idx + 1,
+            description: s.description,
+            image_url: s.image_url
+            })), { transaction: t });
+        }
+      }
+
+      // Обновляем категории
+      if (categories) {
+        console.log('Update: destroying categories for recipe', r.id);
+        await RecipeCategory.destroy({ where: { recipe_id: r.id }, transaction: t });
+        if (categories.length) {
+            await RecipeCategory.bulkCreate(categories.map(catId => ({ recipe_id: r.id, category_id: catId })), { transaction: t });
+        }
+      }
+
+      await t.commit();
+      console.log('Transaction committed for update');
       res.json(await Recipe.findByPk(r.id, { include: getFullInclude() }));
-    } catch (e) { res.status(500).json({ message: 'Ошибка', error: e.message }); }
+    } catch (e) {
+      if (t) await t.rollback();
+      res.status(500).json({ message: 'Ошибка обновления', error: e.message });
+    }
   },
 
   delete: async (req, res) => {

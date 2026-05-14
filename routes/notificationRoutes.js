@@ -84,4 +84,26 @@ router.patch('/:id/read', auth, nc.markRead);
  */
 router.delete('/', auth, nc.deleteAll);
 
+/** @swagger
+ * /notifications/register-device:
+ *   post:
+ *     summary: Зарегистрировать FCM токен устройства для пуш-уведомлений
+ *     tags: [Notifications]
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               token: { type: string }
+ *               device_type: { type: string, example: "android" }
+ *     responses:
+ *       200: { description: Устройство зарегистрировано }
+ */
+// MaybeAuth middleware is better if it supports guests, but for now we can either protect it or make it public.
+// Wait, the user wants guests to receive it too.
+const maybeAuth = require('../middleware/maybeAuth');
+router.post('/register-device', maybeAuth, nc.registerDevice);
+
 module.exports = router;

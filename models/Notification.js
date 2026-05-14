@@ -14,11 +14,11 @@ const Notification = sequelize.define('Notification', {
   },
   actor_id: {
     type: DataTypes.INTEGER,
-    allowNull: false,
-    comment: 'Кто совершил действие'
+    allowNull: true,
+    comment: 'Кто совершил действие (null для системных)'
   },
   type: {
-    type: DataTypes.ENUM('LIKE', 'FOLLOW', 'NEW_POST', 'COMMENT', 'REPLY'),
+    type: DataTypes.ENUM('LIKE', 'FOLLOW', 'NEW_POST', 'COMMENT', 'REPLY', 'SYSTEM'),
     allowNull: false,
   },
   recipe_id: {
@@ -27,6 +27,10 @@ const Notification = sequelize.define('Notification', {
   },
   comment_id: {
     type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  message: {
+    type: DataTypes.TEXT,
     allowNull: true,
   },
   is_read: {

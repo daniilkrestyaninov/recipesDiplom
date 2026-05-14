@@ -5,6 +5,21 @@ const swaggerUi = require('swagger-ui-express');
 const { sequelize } = require('./models');
 require('dotenv').config();
 
+// ── Инициализация Firebase Admin SDK ─────────────────────────
+try {
+  const adminFirebase = require('firebase-admin');
+  const serviceAccount = require('./diplom-f35d3-firebase-adminsdk-fbsvc-8ee5cdf97b.json');
+  
+  if (!adminFirebase.apps.length) {
+    adminFirebase.initializeApp({
+      credential: adminFirebase.credential.cert(serviceAccount)
+    });
+    console.log('✅ Firebase Admin успешно инициализирован');
+  }
+} catch (error) {
+  console.error('❌ Ошибка инициализации Firebase:', error.message);
+}
+
 const app = express();
 
 // ── Middleware ───────────────────────────────────────────────

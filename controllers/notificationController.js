@@ -86,6 +86,30 @@ const notificationController = {
     } catch (err) {
       res.status(500).json({ message: 'Ошибка', error: err.message });
     }
+  },
+
+  // POST /notifications/register-device
+  registerDevice: async (req, res) => {
+    try {
+      const { token, device_type } = req.body;
+      if (!token) return res.status(400).json({ message: 'Токен обязателен' });
+
+      const user_id = req.user ? req.user.id : null;
+      const { DeviceToken } = require('../models');
+
+      const [device, created] = await DeviceToken.findOrCreate({
+        where: { token },
+        defaults: { user_id, device_type }
+      });
+
+      if (!created && device.user_id !== user_id) {
+        await device.update({ user_id });
+      }
+
+      res.json({ message: 'Устройство зарегистрировано', device });
+    } catch (err) {
+      res.status(500).json({ message: 'Ошибка при регистрации устройства', error: err.message });
+    }
   }
 };
 

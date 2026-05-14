@@ -16,10 +16,30 @@ const CookedRecipe = require('./CookedRecipe');
 const CommentLike = require('./CommentLike');
 const Notification = require('./Notification');
 const Report = require('./Report');
+const MenuOfTheWeek = require('./MenuOfTheWeek');
+const VerificationRequest = require('./VerificationRequest');
+const AuditLog = require('./AuditLog');
+const DeviceToken = require('./DeviceToken');
 
 // ── User & Role ──────────────────────────────────────────────
 Role.hasMany(User, { foreignKey: 'role_id' });
 User.belongsTo(Role, { foreignKey: 'role_id' });
+
+// ── Device Tokens ────────────────────────────────────────────
+User.hasMany(DeviceToken, { foreignKey: 'user_id' });
+DeviceToken.belongsTo(User, { foreignKey: 'user_id' });
+
+// ── Menu of the Week ─────────────────────────────────────────
+MenuOfTheWeek.belongsTo(Recipe, { foreignKey: 'recipe_id' });
+Recipe.hasMany(MenuOfTheWeek, { foreignKey: 'recipe_id' });
+
+// ── Verification Requests ────────────────────────────────────
+User.hasMany(VerificationRequest, { foreignKey: 'user_id' });
+VerificationRequest.belongsTo(User, { foreignKey: 'user_id' });
+
+// ── Audit Logs ───────────────────────────────────────────────
+User.hasMany(AuditLog, { foreignKey: 'admin_id' });
+AuditLog.belongsTo(User, { foreignKey: 'admin_id' });
 
 // ── Refresh Tokens ───────────────────────────────────────────
 User.hasMany(RefreshToken, { foreignKey: 'user_id' });
@@ -161,4 +181,8 @@ module.exports = {
   CommentLike,
   Report,
   Notification,
+  MenuOfTheWeek,
+  VerificationRequest,
+  AuditLog,
+  DeviceToken,
 };

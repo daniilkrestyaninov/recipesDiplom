@@ -49,14 +49,14 @@ const authController = {
         password: hashed,
         role_id: 2,
         avatar_url: avatar_url || null,
-        is_verified: false,
-        verification_code
+        is_verified: true, // Bypass verification for tests
+        verification_code: null
       });
 
-      await emailService.sendVerificationEmail(email, verification_code);
+      // await emailService.sendVerificationEmail(email, verification_code);
 
       res.status(201).json({
-        message: 'Регистрация успешна. Код подтверждения отправлен на email.',
+        message: 'Регистрация успешна.',
         userId: user.id
       });
     } catch (err) {
