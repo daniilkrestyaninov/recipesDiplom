@@ -453,8 +453,6 @@ const admin = {
     } catch (e) {
       res.status(500).json({ message: 'Ошибка при массовом удалении рецептов', error: e.message });
     }
-  },
-
   }
 };
 
