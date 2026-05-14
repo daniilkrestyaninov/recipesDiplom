@@ -78,8 +78,17 @@ const rc = {
       report.status = status;
       await report.save();
 
-      res.json({ message: 'Статус обновлен', report });
+      // Если жалоба "Принята" (resolved) и это рецепт — автоматически удаляем его
+      if (status === 'resolved' && report.type === 'recipe' && report.recipe_id) {
+        const recipe = await Recipe.findByPk(report.recipe_id);
+        if (recipe) {
+          await recipe.destroy(); // Физическое удаление или добавьте is_deleted = true если нужно
+        }
+      }
+
+      res.json({ message: 'Статус обновлен. Действие выполнено.', report });
     } catch (e) {
+      console.error('Update Report Error:', e);
       res.status(500).json({ message: 'Ошибка при обновлении статуса', error: e.message });
     }
   }
