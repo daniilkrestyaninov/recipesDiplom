@@ -1,29 +1,27 @@
 const express = require('express');
-const cors = require('cors'); // 1. Импортируем CORS
+const cors = require('cors');
 const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
 const { sequelize } = require('./models');
+const fs = require('fs');
+const path = require('path');
 require('dotenv').config();
 
 // ── Инициализация Firebase Admin SDK ─────────────────────────
 try {
   const adminFirebase = require('firebase-admin');
-  const fs = require('fs');
-  const path = require('path');
   
   const serviceAccountPath = path.join(__dirname, 'diplom-f35d3-firebase-adminsdk-fbsvc-8ee5cdf97b.json');
+  
   if (fs.existsSync(serviceAccountPath)) {
     const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
     
-    // Принудительная очистка ключа от лишних пробелов и переносов
     if (serviceAccount.private_key) {
       let key = serviceAccount.private_key;
-      // Если ключ пришел как одна строка без переносов, но с заполнителями \n
       key = key.replace(/\\n/g, '\n');
-      // Если там всё еще нет реальных переносов строк, но есть заголовки, пробуем восстановить структуру
       if (!key.includes('\n')) {
-          key = key.replace('-----BEGIN PRIVATE KEY-----', '-----BEGIN PRIVATE KEY-----\n')
-                   .replace('-----END PRIVATE KEY-----', '\n-----END PRIVATE KEY-----');
+          key = key.replace('-----BEGIN PRIVATE KEY-----', '-----BEGIN PRIVATE KEY-----\\n')
+                   .replace('-----END PRIVATE KEY-----', '\\n-----END PRIVATE KEY-----');
       }
       serviceAccount.private_key = key.trim();
     }
@@ -34,8 +32,6 @@ try {
       });
       console.log('✅ Firebase Admin успешно инициализирован');
     }
-  } else {
-    console.error('❌ Файл ключа Firebase не найден по пути:', serviceAccountPath);
   }
 } catch (error) {
   console.error('❌ Ошибка инициализации Firebase:', error.message);
@@ -44,19 +40,17 @@ try {
 const app = express();
 
 // ── Middleware ───────────────────────────────────────────────
-app.use(cors()); // 2. Разрешаем кросс-доменные запросы для всех источников
+app.use(cors());
 app.use(express.json());
 
 // ── Swagger ──────────────────────────────────────────────────
-const path = require('path');
-
 const swaggerOptions = {
   definition: {
     openapi: '3.0.0',
     info: {
       title: 'Vkusno API',
       version: '2.0.0',
-      description: 'Полный API проекта "Вкусно" — рецепты, социалка, модерация, синхронизация',
+      description: 'Полный API проекта "Вкусно"',
     },
     servers: [{ url: '/', description: 'Текущий сервер' }],
     components: {
@@ -76,7 +70,6 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs, {
 }));
 
 // ── Роуты ────────────────────────────────────────────────────
-// Настройка маршрутов в соответствии с архитектурой REST API [cite: 51, 208]
 app.use('/auth', require('./routes/authRoutes'));
 app.use('/users', require('./routes/userRoutes'));
 app.use('/recipes', require('./routes/recipeRoutes'));
@@ -84,28 +77,16 @@ app.use('/comments', require('./routes/commentRoutes'));
 app.use('/favorites', require('./routes/favoriteRoutes'));
 app.use('/meta', require('./routes/metaRoutes'));
 app.use('/admin', require('./routes/adminRoutes'));
-app.use('/tools', require('./routes/toolsRoutes'));
-app.use('/ai', require('./routes/toolsRoutes')); // Здесь можно выделить в отдельный aiRoutes позже
-app.use('/sync', require('./routes/syncRoutes'));
-app.use('/upload', require('./routes/uploadRoutes'));
 app.use('/notifications', require('./routes/notificationRoutes'));
 app.use('/reports', require('./routes/reportRoutes'));
+app.use('/sync', require('./routes/syncRoutes'));
+app.use('/upload', require('./routes/uploadRoutes'));
+app.use('/tools', require('./routes/toolsRoutes'));
 
-// ── Глобальный обработчик ошибок ─────────────────────────────
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: 'Внутренняя ошибка сервера', error: err.message });
-});
-
-// ── Запуск + авто-создание таблиц в PostgreSQL ────────────────
-// Синхронизация с БД PostgreSQL [cite: 48, 221]
+// ── Запуск ───────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
-
-sequelize.sync({ alter: true }).then(() => {
+sequelize.sync().then(() => {
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n  🚀 Сервер запущен: http://188.233.238.70:${PORT}`);
-    console.log(`  📖 Swagger UI:     http://188.233.238.70:${PORT}/api-docs\n`);
+    console.log(`🚀 Сервер запущен: http://188.233.238.70:${PORT}`);
   });
-}).catch(err => {
-  console.error('❌ Ошибка подключения к БД:', err.message);
 });
