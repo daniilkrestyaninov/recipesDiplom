@@ -86,15 +86,17 @@ const rc = {
       report.status = status;
       await report.save();
 
-      // Уведомляем автора жалобы (репортера)
+      // Уведомляем автора жалобы (репортера) только если жалоба принята или отклонена
       try {
-        let statusText = status === 'resolved' ? 'Принята' : (status === 'dismissed' ? 'Отклонена' : 'Рассмотрена');
-        await notificationController.sendPushToUser(
-          report.reporter_id, 
-          'Обновление по жалобе', 
-          `Ваша жалоба была рассмотрена. Статус: ${statusText}.`,
-          { type: 'REPORT_STATUS', report_id: String(report.id), status }
-        );
+        if (status === 'resolved' || status === 'dismissed') {
+          let statusText = status === 'resolved' ? 'Принята' : 'Отклонена';
+          await notificationController.sendPushToUser(
+            report.reporter_id, 
+            'Обновление по жалобе', 
+            `Ваша жалоба была рассмотрена. Результат: ${statusText}.`,
+            { type: 'REPORT_STATUS', report_id: String(report.id), status }
+          );
+        }
       } catch (e) { console.error('Error sending report push:', e.message); }
 
       // Если жалоба "Принята" (resolved) и это рецепт — автоматически удаляем его
