@@ -322,24 +322,47 @@ const admin = {
       }));
       await Notification.bulkCreate(notifications);
 
-      // 2. Отправляем Push-уведомление через Firebase (FCM) всем устройствам через топик
+      // 2. Отправляем Push-уведомление через Firebase (FCM)
       let pushSent = false;
       try {
         const adminFirebase = require('firebase-admin');
+        const { DeviceToken } = require('../models');
+        
         if (adminFirebase.apps.length > 0) {
+          // Получаем все токены из БД
+          const deviceTokens = await DeviceToken.findAll({ attributes: ['token'] });
+          const tokens = deviceTokens.map(dt => dt.token);
+
+          if (tokens.length > 0) {
+            const response = await adminFirebase.messaging().sendEachForMulticast({
+              tokens: tokens,
+              notification: {
+                title: finalTitle,
+                body: finalBody
+              },
+              data: {
+                type: 'SYSTEM',
+                title: finalTitle,
+                body: finalBody
+              },
+              android: {
+                priority: 'high',
+                notification: {
+                  channelId: 'umami_notifications',
+                  priority: 'high'
+                }
+              }
+            });
+            console.log(`FCM Multicast: ${response.successCount} success, ${response.failureCount} failure`);
+            pushSent = response.successCount > 0;
+          }
+
+          // Также дублируем в топик (на всякий случай)
           await adminFirebase.messaging().send({
             topic: 'global_broadcast',
-            notification: {
-              title: finalTitle,
-              body: finalBody
-            },
-            data: {
-              type: 'SYSTEM',
-              title: finalTitle,
-              body: finalBody
-            }
-          });
-          pushSent = true;
+            notification: { title: finalTitle, body: finalBody },
+            data: { type: 'SYSTEM' }
+          }).catch(e => console.error('Topic send error:', e.message));
         }
       } catch (fcmError) {
         console.error('Ошибка отправки FCM:', fcmError);
