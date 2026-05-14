@@ -3,6 +3,7 @@ const router = express.Router();
 const admin = require('../controllers/adminController');
 const auth = require('../middleware/authMiddleware');
 const isAdmin = require('../middleware/adminMiddleware');
+const staff = require('../middleware/staffMiddleware');
 
 /**
  * @swagger
@@ -56,7 +57,7 @@ router.get('/users', auth, isAdmin, admin.getUsers);
  *     responses:
  *       200: { description: Пользователь заблокирован }
  */
-router.post('/users/:id/block', auth, isAdmin, admin.blockUser);
+router.post('/users/:id/block', auth, staff, admin.blockUser);
 
 /** @swagger
  * /admin/roles:
@@ -119,7 +120,7 @@ router.delete('/users/:id', auth, isAdmin, admin.deleteUser);
  *     responses:
  *       200: { description: Рецепт удалён }
  */
-router.delete('/recipes/:id', auth, isAdmin, admin.deleteRecipe);
+router.delete('/recipes/:id', auth, staff, admin.deleteRecipe);
 
 /** @swagger
  * /admin/comments/{id}:
@@ -132,7 +133,7 @@ router.delete('/recipes/:id', auth, isAdmin, admin.deleteRecipe);
  *     responses:
  *       200: { description: Комментарий удалён }
  */
-router.delete('/comments/:id', auth, isAdmin, admin.deleteComment);
+router.delete('/comments/:id', auth, staff, admin.deleteComment);
 
 /** @swagger
  * /admin/menu-of-week:
@@ -251,7 +252,7 @@ router.get('/audit-logs', auth, isAdmin, admin.getAuditLogs);
  *     responses:
  *       200: { description: Пользователи заблокированы }
  */
-router.post('/users/bulk-block', auth, isAdmin, admin.bulkBlockUsers);
+router.post('/users/bulk-block', auth, staff, admin.bulkBlockUsers);
 
 /** @swagger
  * /admin/recipes/bulk-delete:
@@ -269,6 +270,6 @@ router.post('/users/bulk-block', auth, isAdmin, admin.bulkBlockUsers);
  *     responses:
  *       200: { description: Рецепты удалены }
  */
-router.post('/recipes/bulk-delete', auth, isAdmin, admin.bulkDeleteRecipes);
+router.post('/recipes/bulk-delete', auth, staff, admin.bulkDeleteRecipes);
 
 module.exports = router;

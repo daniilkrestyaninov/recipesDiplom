@@ -118,7 +118,7 @@ const cc = {
     try {
       const c = await Comment.findByPk(req.params.id);
       if (!c) return res.status(404).json({ message: 'Комментарий не найден' });
-      if (Number(c.user_id) !== req.user.id && req.user.role !== 'Admin')
+      if (Number(c.user_id) !== req.user.id && req.user.role !== 'Admin' && req.user.role !== 'Moderator')
         return res.status(403).json({ message: 'Нет прав' });
       await c.destroy();
       res.json({ message: 'Комментарий удалён' });

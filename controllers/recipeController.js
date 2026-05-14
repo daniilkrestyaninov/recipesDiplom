@@ -275,9 +275,9 @@ const rc = {
         await t.rollback();
         return res.status(404).json({ message: 'Рецепт не найден' });
       }
-      if (Number(r.user_id) !== req.user.id && req.user.role !== 'Admin') {
+      if (Number(r.user_id) !== req.user.id && req.user.role !== 'Admin' && req.user.role !== 'Moderator') {
         await t.rollback();
-        return res.status(403).json({ message: 'Только автор может редактировать' });
+        return res.status(403).json({ message: 'Нет прав для редактирования' });
       }
 
       const { title, description, difficulty, image_url, is_private, kitchen_id, celebration_id, cooking_id, portion, calorific, cooking_time, ingredients, steps, categories, proteins, fats, carbohydrates, is_generated } = req.body;
@@ -360,7 +360,7 @@ const rc = {
     try {
       const r = await Recipe.findByPk(req.params.id);
       if (!r) return res.status(404).json({ message: 'Рецепт не найден' });
-      if (Number(r.user_id) !== req.user.id && req.user.role !== 'Admin') return res.status(403).json({ message: 'Нет прав' });
+      if (Number(r.user_id) !== req.user.id && req.user.role !== 'Admin' && req.user.role !== 'Moderator') return res.status(403).json({ message: 'Нет прав' });
       await Step.destroy({ where: { recipe_id: r.id } });
       await RecipeIngredient.destroy({ where: { recipe_id: r.id } });
       await RecipeCategory.destroy({ where: { recipe_id: r.id } });
