@@ -11,7 +11,9 @@ const userController = {
         attributes: { exclude: ['password', 'password_reset_code', 'password_reset_expires'] },
         include: [{ model: Role, attributes: ['name'] }],
       });
-      res.json(user);
+      const userData = user.toJSON();
+      userData.role = userData.Role?.name || 'user';
+      res.json(userData);
     } catch (err) {
       res.status(500).json({ message: 'Ошибка', error: err.message });
     }
@@ -25,8 +27,11 @@ const userController = {
       await user.update({ name, bio, avatar_url, email });
       const updated = await User.findByPk(req.user.id, {
         attributes: { exclude: ['password', 'password_reset_code', 'password_reset_expires'] },
+        include: [{ model: Role, attributes: ['name'] }],
       });
-      res.json(updated);
+      const userData = updated.toJSON();
+      userData.role = userData.Role?.name || 'user';
+      res.json(userData);
     } catch (err) {
       res.status(500).json({ message: 'Ошибка обновления', error: err.message });
     }
@@ -78,8 +83,11 @@ const userController = {
       const followersCount = await Subscription.count({ where: { following_id: req.params.id } });
       const followingCount = await Subscription.count({ where: { follower_id: req.params.id } });
 
+      const userData = user.toJSON();
+      userData.role = userData.Role?.name || 'user';
+
       res.json({
-        ...user.toJSON(),
+        ...userData,
         stats: { recipesCount, followersCount, followingCount },
       });
     } catch (err) {
