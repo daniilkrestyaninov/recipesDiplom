@@ -24,6 +24,36 @@ const admin = {
     } catch (e) { res.status(500).json({ message: 'Ошибка', error: e.message }); }
   },
 
+  // PATCH /admin/users/:id
+  updateUser: async (req, res) => {
+    try {
+      const user = await User.findByPk(req.params.id);
+      if (!user) return res.status(404).json({ message: 'Пользователь не найден' });
+      
+      const { name, bio, role_id } = req.body;
+      
+      // Keep old role id for audit log
+      const oldRoleId = user.role_id;
+      
+      await user.update({ 
+        name: name !== undefined ? name : user.name,
+        bio: bio !== undefined ? bio : user.bio,
+        role_id: role_id !== undefined ? role_id : user.role_id
+      });
+      
+      if (role_id !== undefined && oldRoleId !== role_id) {
+        await AuditLog.create({ 
+          admin_id: req.user.id, 
+          action: 'UPDATE_ROLE', 
+          entity: 'User', 
+          entity_id: user.id 
+        });
+      }
+
+      res.json({ message: 'Профиль пользователя обновлен', user });
+    } catch (e) { res.status(500).json({ message: 'Ошибка', error: e.message }); }
+  },
+
   // POST /admin/users/:id/block
   blockUser: async (req, res) => {
     try {
