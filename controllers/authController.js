@@ -74,7 +74,7 @@ const authController = {
       });
       if (!user) return res.status(404).json({ message: 'Пользователь не найден' });
       if (user.is_blocked) return res.status(403).json({ message: 'Аккаунт заблокирован' });
-      if (!user.is_verified) return res.status(403).json({ message: 'Email не подтвержден' });
+      // if (!user.is_verified) return res.status(403).json({ message: 'Email не подтвержден' });
 
       const valid = await bcrypt.compare(password, user.password);
       if (!valid) return res.status(401).json({ message: 'Неверный пароль' });
