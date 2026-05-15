@@ -115,7 +115,11 @@ const userController = {
         },
         order: [['created_at', 'DESC']],
         include: [
-          { model: User, attributes: ['id', 'username', 'name', 'avatar_url'] },
+          { 
+            model: User, 
+            attributes: ['id', 'username', 'name', 'avatar_url', 'is_blocked'],
+            where: { is_blocked: false } // Hide if user is blocked
+          },
           { model: Like, as: 'Likes', attributes: ['user_id'] },
         ]
       });
@@ -135,7 +139,8 @@ const userController = {
           [Op.or]: [
             { username: { [Op.iLike]: `%${q}%` } },
             { name: { [Op.iLike]: `%${q}%` } }
-          ]
+          ],
+          is_blocked: false // Hide blocked users from search
         },
         attributes: ['id', 'username', 'name', 'avatar_url', 'bio'],
         limit: 20

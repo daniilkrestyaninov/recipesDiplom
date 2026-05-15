@@ -252,7 +252,7 @@ router.post('/:id/like', auth, checkNotBlocked, social.like);
  *     responses:
  *       200: { description: Лайк убран }
  */
-router.delete('/:id/like', auth, social.unlike);
+router.delete('/:id/like', auth, checkNotBlocked, social.unlike);
 
 /** @swagger
  * /recipes/{id}/favorite:

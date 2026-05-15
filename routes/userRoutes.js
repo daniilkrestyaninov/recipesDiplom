@@ -117,7 +117,7 @@ router.post('/:id/follow', auth, checkNotBlocked, social.follow);
  *     responses:
  *       200: { description: Отписка выполнена }
  */
-router.delete('/:id/follow', auth, social.unfollow);
+router.delete('/:id/follow', auth, checkNotBlocked, social.unfollow);
 
 /** @swagger
  * /users/{id}/followers:

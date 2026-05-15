@@ -10,19 +10,17 @@ const getFullInclude = (separate = true) => [
     model: Ingredient,
     as: 'Ingredients',
     through: { attributes: ['quantity', 'note'] },
-    include: [{ model: Unit, as: 'Unit' }],
-    separate: separate
+    include: [{ model: Unit, as: 'Unit' }]
   },
   { model: Step, as: 'Steps', separate: separate },
   { model: NationalKitchen, as: 'Kitchen' },
   { model: Celebration, as: 'Celebration' },
   { model: TypeCooking, as: 'TypeCooking' },
-  { model: Category, as: 'Categories', separate: separate },
+  { model: Category, as: 'Categories' },
   { 
     model: Like, 
     as: 'Likes', 
     attributes: ['user_id'],
-    include: [{ model: User, attributes: ['id', 'username', 'avatar_url'] }],
     separate: separate
   },
 ];
@@ -130,18 +128,26 @@ const rc = {
 
       // Если подписок нет, показываем общую ленту свежих рецептов (лента "Открытия")
       if (!ids.length) {
+        const include = getFullInclude();
+        const userIncl = include.find(i => i.model === User);
+        if (userIncl) userIncl.where = { is_blocked: false };
+
         const recipes = await Recipe.findAll({
           where: { is_private: false },
-          include: getFullInclude(),
+          include,
           limit: 20,
           order: [['created_at', 'DESC']],
         });
         return res.json(await attachRatings(recipes));
       }
 
+      const include = getFullInclude();
+      const userIncl = include.find(i => i.model === User);
+      if (userIncl) userIncl.where = { is_blocked: false };
+
       const recipes = await Recipe.findAll({
         where: { user_id: { [Op.in]: ids }, is_private: false },
-        include: getFullInclude(),
+        include,
         order: [['created_at', 'DESC']],
       });
 
@@ -151,7 +157,11 @@ const rc = {
 
   getRandom: async (req, res) => {
     try {
-      const r = await Recipe.findOne({ where: { is_private: false }, order: [fn('RANDOM')], include: getFullInclude() });
+      const include = getFullInclude();
+      const userIncl = include.find(i => i.model === User);
+      if (userIncl) userIncl.where = { is_blocked: false };
+
+      const r = await Recipe.findOne({ where: { is_private: false }, order: [fn('RANDOM')], include });
       if (!r) return res.status(404).json({ message: 'Нет рецептов' });
       res.json(r);
     } catch (e) { res.status(500).json({ message: 'Ошибка', error: e.message }); }
@@ -159,15 +169,18 @@ const rc = {
 
   getById: async (req, res) => {
     try {
-      const include = getFullInclude();
-      // Если не админ, проверяем, не заблокирован ли автор
-      if (!req.user || req.user.role !== 'Admin') {
-        const userIncl = include.find(i => i.model === User);
-        if (userIncl) userIncl.where = { is_blocked: false };
-      }
+      const r = await Recipe.findByPk(req.params.id, { include: getFullInclude(false) });
+      if (!r) return res.status(404).json({ message: 'Рецепт не найден' });
 
-      const r = await Recipe.findByPk(req.params.id, { include });
-      if (!r) return res.status(404).json({ message: 'Рецепт не найден или автор заблокирован' });
+      // Если автор заблокирован, показываем только ему самому или админам
+      const author = await User.findByPk(r.user_id);
+      if (author && author.is_blocked) {
+        const isOwner = req.user && Number(req.user.id) === Number(r.user_id);
+        const isStaff = req.user && (req.user.role === 'Admin' || req.user.role === 'Moderator');
+        if (!isOwner && !isStaff) {
+          return res.status(404).json({ message: 'Рецепт недоступен (автор заблокирован)' });
+        }
+      }
 
       // Увеличиваем счетчик просмотров при каждом открытии
       await r.increment('views_count');

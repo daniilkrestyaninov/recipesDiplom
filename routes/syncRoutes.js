@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const sync = require('../controllers/syncController');
 const auth = require('../middleware/authMiddleware');
+const checkNotBlocked = require('../middleware/blockMiddleware');
 
 /**
  * @swagger
@@ -40,6 +41,6 @@ router.get('/delta', auth, sync.delta);
  *     responses:
  *       201: { description: Синхронизировано }
  */
-router.post('/push', auth, sync.push);
+router.post('/push', auth, checkNotBlocked, sync.push);
 
 module.exports = router;
