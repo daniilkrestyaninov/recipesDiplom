@@ -252,7 +252,7 @@ const rc = {
           const ingWithUnit = await Ingredient.findByPk(ing.id, { include: [{ model: Unit, as: 'Unit' }], transaction: t });
           ingredientId = ing.id;
           ingredientName = ing.name;
-          ingredientUnit = ingWithUnit.Unit?.short_name || '';
+          ingredientUnit = ingWithUnit?.Unit?.short_name || '';
         } else if (ingredientId) {
           const ing = await Ingredient.findByPk(ingredientId, { include: [{ model: Unit, as: 'Unit' }], transaction: t });
           if (ing) {
@@ -263,7 +263,7 @@ const rc = {
 
         ingredientLinks.push({
           ingredient_id: ingredientId,
-          quantity: String(i.quantity || ''),
+          quantity: i.unit ? `${i.quantity || ''} ${i.unit}`.trim() : String(i.quantity || ''),
           note: i.note || ''
         });
 
@@ -336,7 +336,8 @@ const rc = {
       const [withRatings] = await attachRatings([finalRecipe]);
       res.status(201).json(withRatings);
     } catch (e) {
-      await t.rollback();
+      console.error('CRITICAL ERROR during Recipe Create:', e);
+      if (t) await t.rollback();
       res.status(500).json({ message: 'Ошибка создания', error: e.message });
     }
   },
@@ -387,7 +388,7 @@ const rc = {
             ingredientLinks.push({
               recipe_id: r.id,
               ingredient_id: ingredientId,
-              quantity: String(i.quantity || ''),
+              quantity: i.unit ? `${i.quantity || ''} ${i.unit}`.trim() : String(i.quantity || ''),
               note: i.note || ''
             });
           }
@@ -429,6 +430,7 @@ const rc = {
       const [withRatings] = await attachRatings([finalRecipe]);
       res.json(withRatings);
     } catch (e) {
+      console.error('CRITICAL ERROR during Recipe Update:', e);
       if (t) await t.rollback();
       res.status(500).json({ message: 'Ошибка обновления', error: e.message });
     }
