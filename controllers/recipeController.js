@@ -4,24 +4,26 @@ const { Recipe, User, Ingredient, RecipeIngredient, RecipeCategory,
 const { Op, fn, col } = require('sequelize');
 const geminiService = require('../services/geminiService');
 
-const getFullInclude = () => [
+const getFullInclude = (separate = true) => [
   { model: User, attributes: ['id', 'username', 'name', 'avatar_url', 'is_blocked'] },
   {
     model: Ingredient,
     as: 'Ingredients',
     through: { attributes: ['quantity', 'note'] },
-    include: [{ model: Unit, as: 'Unit' }]
+    include: [{ model: Unit, as: 'Unit' }],
+    separate: separate
   },
-  { model: Step, as: 'Steps' },
+  { model: Step, as: 'Steps', separate: separate },
   { model: NationalKitchen, as: 'Kitchen' },
   { model: Celebration, as: 'Celebration' },
   { model: TypeCooking, as: 'TypeCooking' },
-  { model: Category, as: 'Categories' },
+  { model: Category, as: 'Categories', separate: separate },
   { 
     model: Like, 
     as: 'Likes', 
     attributes: ['user_id'],
-    include: [{ model: User, attributes: ['id', 'username', 'avatar_url'] }]
+    include: [{ model: User, attributes: ['id', 'username', 'avatar_url'] }],
+    separate: separate
   },
 ];
 
@@ -98,7 +100,7 @@ const rc = {
         { description: { [Op.iLike]: `%${search}%` } },
       ];
 
-      const include = getFullInclude();
+      const include = getFullInclude(category_id ? false : true);
       // Не показываем рецепты заблокированных пользователей для всех, кроме админов
       if (!req.user || req.user.role !== 'Admin') {
         const userIncl = include.find(i => i.model === User);
@@ -112,6 +114,7 @@ const rc = {
         if (catIdx !== -1) {
           include[catIdx].where = { id: { [Op.in]: category_id } };
           include[catIdx].required = true;
+          include[catIdx].separate = false; // Cannot use separate with where/required on the same include
         }
       }
 

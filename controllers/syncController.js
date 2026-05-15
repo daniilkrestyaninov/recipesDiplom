@@ -29,7 +29,10 @@ const syncController = {
         const recipe = await Recipe.create({
           user_id: req.user.id,
           title: r.title, description: r.description, difficulty: r.difficulty,
-          image_url: r.image_url, is_private: r.is_private || false,
+          image_url: r.image_url, 
+          is_private: (r.is_generated || r.is_parsed) ? true : (r.is_private || false),
+          is_generated: r.is_generated || false,
+          is_parsed: r.is_parsed || false,
           kitchen_id: r.kitchen_id, celebration_id: r.celebration_id, cooking_id: r.cooking_id,
           portion: r.portion, calorific: r.calorific, cooking_time: r.cooking_time,
         });
