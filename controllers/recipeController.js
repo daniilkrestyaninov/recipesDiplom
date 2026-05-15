@@ -170,15 +170,21 @@ const rc = {
       });
 
       const recipeData = r.toJSON();
-      recipeData.rating = parseFloat(stats.avg_rating || 0).toFixed(1);
-      recipeData.total_reviews = parseInt(stats.total_reviews || 0);
-      recipeData.taste_averages = {
-        sweet: parseFloat(stats.avg_sweet || 0).toFixed(1),
-        sour: parseFloat(stats.avg_sour || 0).toFixed(1),
-        salty: parseFloat(stats.avg_salty || 0).toFixed(1),
-        spicy: parseFloat(stats.avg_spicy || 0).toFixed(1),
-        umami: parseFloat(stats.avg_umami || 0).toFixed(1)
-      };
+      if (stats) {
+        recipeData.rating = parseFloat(stats.avg_rating || 0).toFixed(1);
+        recipeData.total_reviews = parseInt(stats.total_reviews || 0);
+        recipeData.taste_averages = {
+          sweet: parseFloat(stats.avg_sweet || 0).toFixed(1),
+          sour: parseFloat(stats.avg_sour || 0).toFixed(1),
+          salty: parseFloat(stats.avg_salty || 0).toFixed(1),
+          spicy: parseFloat(stats.avg_spicy || 0).toFixed(1),
+          umami: parseFloat(stats.avg_umami || 0).toFixed(1)
+        };
+      } else {
+        recipeData.rating = "0.0";
+        recipeData.total_reviews = 0;
+        recipeData.taste_averages = { sweet: "0.0", sour: "0.0", salty: "0.0", spicy: "0.0", umami: "0.0" };
+      }
 
       res.json(recipeData);
     } catch (e) { res.status(500).json({ message: 'Ошибка', error: e.message }); }

@@ -87,7 +87,7 @@ app.use('/ai', require('./routes/toolsRoutes'));
 
 // ── Запуск ───────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
-sequelize.sync().then(() => {
+sequelize.sync({ alter: true }).then(() => {
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Сервер запущен: http://188.233.238.70:${PORT}`);
   });

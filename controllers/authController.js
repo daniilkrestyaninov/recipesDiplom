@@ -94,6 +94,7 @@ const authController = {
         user: { id: user.id, username: user.username, name: user.name, role: roleName },
       });
     } catch (err) {
+      console.error('Login error:', err);
       res.status(500).json({ message: 'Ошибка при входе', error: err.message });
     }
   },
