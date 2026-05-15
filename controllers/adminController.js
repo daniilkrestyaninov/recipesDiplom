@@ -78,7 +78,24 @@ const admin = {
       if (!user) return res.status(404).json({ message: 'Пользователь не найден' });
       await user.update({ is_blocked: true });
       await AuditLog.create({ admin_id: req.user.id, action: 'BLOCK_USER', entity: 'User', entity_id: user.id });
+      
+      await notificationController.sendPushToUser(user.id, 'Аккаунт заблокирован', 'Ваш аккаунт был заблокирован администратором.');
+      
       res.json({ message: 'Пользователь заблокирован' });
+    } catch (e) { res.status(500).json({ message: 'Ошибка', error: e.message }); }
+  },
+
+  // POST /admin/users/:id/unblock
+  unblockUser: async (req, res) => {
+    try {
+      const user = await User.findByPk(req.params.id);
+      if (!user) return res.status(404).json({ message: 'Пользователь не найден' });
+      await user.update({ is_blocked: false });
+      await AuditLog.create({ admin_id: req.user.id, action: 'UNBLOCK_USER', entity: 'User', entity_id: user.id });
+      
+      await notificationController.sendPushToUser(user.id, 'Аккаунт разблокирован', 'Ваш аккаунт был разблокирован. Теперь вы снова можете пользоваться всеми функциями.');
+      
+      res.json({ message: 'Пользователь разблокирован' });
     } catch (e) { res.status(500).json({ message: 'Ошибка', error: e.message }); }
   },
 
@@ -472,6 +489,52 @@ const admin = {
       res.json({ message: `Удалено рецептов: ${deleted}` });
     } catch (e) {
       res.status(500).json({ message: 'Ошибка при массовом удалении рецептов', error: e.message });
+    }
+  },
+
+  // ==========================================
+  // УПРАВЛЕНИЕ АПЕЛЛЯЦИЯМИ (Appeal Management)
+  // ==========================================
+
+  // GET /admin/appeals
+  getAppeals: async (req, res) => {
+    try {
+      const appeals = await Appeal.findAll({
+        include: [{ model: User, attributes: ['id', 'username', 'name', 'avatar_url'] }],
+        order: [['created_at', 'DESC']]
+      });
+      res.json(appeals);
+    } catch (e) {
+      res.status(500).json({ message: 'Ошибка при получении апелляций', error: e.message });
+    }
+  },
+
+  // PATCH /admin/appeals/:id
+  processAppeal: async (req, res) => {
+    try {
+      const { status, admin_notes } = req.body; // 'reviewed', 'resolved'
+      const appeal = await Appeal.findByPk(req.params.id);
+      if (!appeal) return res.status(404).json({ message: 'Апелляция не найдена' });
+
+      await appeal.update({ status, admin_notes });
+
+      if (status === 'resolved') {
+        // Если апелляция решена положительно, разблокируем пользователя
+        const user = await User.findByPk(appeal.user_id);
+        if (user) {
+          await user.update({ is_blocked: false });
+          await notificationController.sendPushToUser(user.id, 'Апелляция одобрена', 'Ваша апелляция была рассмотрена и одобрена. Аккаунт разблокирован.');
+          await AuditLog.create({ admin_id: req.user.id, action: 'UNBLOCK_USER_VIA_APPEAL', entity: 'User', entity_id: user.id, details: { appeal_id: appeal.id } });
+        }
+      } else if (status === 'reviewed') {
+        await notificationController.sendPushToUser(appeal.user_id, 'Апелляция рассмотрена', 'Ваша апелляция была рассмотрена администратором.');
+      }
+
+      await AuditLog.create({ admin_id: req.user.id, action: 'PROCESS_APPEAL', entity: 'Appeal', entity_id: appeal.id, details: { status } });
+
+      res.json({ message: `Апелляция переведена в статус ${status}`, appeal });
+    } catch (e) {
+      res.status(500).json({ message: 'Ошибка при обработке апелляции', error: e.message });
     }
   }
 };

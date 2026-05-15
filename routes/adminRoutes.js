@@ -58,6 +58,7 @@ router.get('/users', auth, staff, admin.getUsers);
  *       200: { description: Пользователь заблокирован }
  */
 router.post('/users/:id/block', auth, staff, admin.blockUser);
+router.post('/users/:id/unblock', auth, staff, admin.unblockUser);
 
 /** @swagger
  * /admin/roles:
@@ -271,5 +272,37 @@ router.post('/users/bulk-block', auth, staff, admin.bulkBlockUsers);
  *       200: { description: Рецепты удалены }
  */
 router.post('/recipes/bulk-delete', auth, staff, admin.bulkDeleteRecipes);
+
+/** @swagger
+ * /admin/appeals:
+ *   get:
+ *     summary: Список апелляций
+ *     tags: [Admin]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Список апелляций }
+ */
+router.get('/appeals', auth, staff, admin.getAppeals);
+
+/** @swagger
+ * /admin/appeals/{id}:
+ *   patch:
+ *     summary: Обработать апелляцию
+ *     tags: [Admin]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status: { type: string, enum: [reviewed, resolved] }
+ *               admin_notes: { type: string }
+ *     responses:
+ *       200: { description: Апелляция обработана }
+ */
+router.patch('/appeals/:id', auth, staff, admin.processAppeal);
 
 module.exports = router;
