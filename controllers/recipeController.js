@@ -4,7 +4,7 @@ const { Recipe, User, Ingredient, RecipeIngredient, RecipeCategory,
 const { Op, fn, col } = require('sequelize');
 const geminiService = require('../services/geminiService');
 
-const getFullInclude = (separate = false) => [
+const getFullInclude = () => [
   { model: User, attributes: ['id', 'username', 'name', 'avatar_url', 'is_blocked'] },
   {
     model: Ingredient,
@@ -12,7 +12,7 @@ const getFullInclude = (separate = false) => [
     through: { attributes: ['quantity', 'note'] },
     include: [{ model: Unit, as: 'Unit' }]
   },
-  { model: Step, as: 'Steps', separate: separate },
+  { model: Step, as: 'Steps' },
   { model: NationalKitchen, as: 'Kitchen' },
   { model: Celebration, as: 'Celebration' },
   { model: TypeCooking, as: 'TypeCooking' },
@@ -20,8 +20,7 @@ const getFullInclude = (separate = false) => [
   { 
     model: Like, 
     as: 'Likes', 
-    attributes: ['user_id'],
-    separate: separate
+    attributes: ['user_id']
   },
 ];
 
@@ -169,7 +168,7 @@ const rc = {
 
   getById: async (req, res) => {
     try {
-      const r = await Recipe.findByPk(req.params.id, { include: getFullInclude(false) });
+      const r = await Recipe.findByPk(req.params.id, { include: getFullInclude() });
       if (!r) return res.status(404).json({ message: 'Рецепт не найден' });
 
       // Если автор заблокирован, показываем только ему самому или админам
