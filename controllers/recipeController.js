@@ -239,12 +239,14 @@ const rc = {
       const ingredientDetailsForAI = [];
       const ingredientLinks = [];
 
+      console.log('Validating ingredients...');
       for (const i of ingredients) {
         let ingredientId = i.id;
         let ingredientName = i.name;
         let ingredientUnit = '';
 
         if (!ingredientId && ingredientName) {
+          console.log(`Creating ingredient: ${ingredientName}`);
           const [ing] = await Ingredient.findOrCreate({
             where: { name: ingredientName },
             defaults: { unit_id: 1 }, // Default to first unit if not provided
@@ -255,6 +257,7 @@ const rc = {
           ingredientName = ing.name;
           ingredientUnit = ingWithUnit?.Unit?.short_name || '';
         } else if (ingredientId) {
+          console.log(`Using existing ingredient ID: ${ingredientId}`);
           const ing = await Ingredient.findByPk(ingredientId, { include: [{ model: Unit, as: 'Unit' }], transaction: t });
           if (ing) {
             ingredientName = ing.name;
@@ -271,6 +274,7 @@ const rc = {
         ingredientDetailsForAI.push(`${ingredientName} ${i.quantity || ''} ${ingredientUnit} ${i.note || ''}`);
       }
 
+      console.log('Calculating PFC...');
       let pfcData = { proteins, fats, carbohydrates, calorific, is_ai_pfc: false };
       if (!proteins && !fats && !carbohydrates) {
         try {
@@ -283,6 +287,7 @@ const rc = {
         }
       }
 
+      console.log('Saving recipe to DB...');
       const recipe = await Recipe.create({
         user_id: req.user.id,
         title, description, difficulty: difficulty ? String(difficulty) : '1', image_url,
@@ -298,6 +303,7 @@ const rc = {
         cooking_time
       }, { transaction: t });
 
+      console.log(`Recipe saved. ID: ${recipe.id}. Saving links...`);
       if (ingredientLinks.length) {
         await RecipeIngredient.bulkCreate(ingredientLinks.map(link => ({ ...link, recipe_id: recipe.id })), { transaction: t });
       }
@@ -313,7 +319,9 @@ const rc = {
         await RecipeCategory.bulkCreate(categories.map(catId => ({ recipe_id: recipe.id, category_id: catId })), { transaction: t });
       }
 
+      console.log('Committing transaction...');
       await t.commit();
+      console.log('Transaction committed.');
 
       // Notification for followers (Async, after commit)
       if (!recipe.is_private) {
