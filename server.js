@@ -83,6 +83,7 @@ app.use('/diet-plans', require('./routes/dietPlanRoutes'));
 app.use('/sync', require('./routes/syncRoutes'));
 app.use('/upload', require('./routes/uploadRoutes'));
 app.use('/tools', require('./routes/toolsRoutes'));
+app.use('/ai', require('./routes/toolsRoutes'));
 
 // ── Запуск ───────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;

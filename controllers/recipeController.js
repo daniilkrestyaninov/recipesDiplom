@@ -17,7 +17,12 @@ const getFullInclude = () => [
   { model: Celebration, as: 'Celebration' },
   { model: TypeCooking, as: 'TypeCooking' },
   { model: Category, as: 'Categories' },
-  { model: Like, as: 'Likes', attributes: ['user_id'] },
+  { 
+    model: Like, 
+    as: 'Likes', 
+    attributes: ['user_id'],
+    include: [{ model: User, attributes: ['id', 'username', 'avatar_url'] }]
+  },
 ];
 
 const attachRatings = async (recipes) => {
@@ -40,11 +45,25 @@ const attachRatings = async (recipes) => {
     const ratingInfo = recipeRatings.find(rt => String(rt.recipe_id) === String(rData.id));
     rData.rating = parseFloat(ratingInfo?.avg_rating || 0).toFixed(1);
     rData.total_reviews = parseInt(ratingInfo?.total_reviews || 0);
+    rData.likes_count = rData.Likes ? rData.Likes.length : 0;
     return rData;
   });
 };
 
 const rc = {
+  getLikes: async (req, res) => {
+    try {
+      const { Like, User } = require('../models');
+      const likes = await Like.findAll({
+        where: { recipe_id: req.params.id },
+        include: [{ model: User, attributes: ['id', 'username', 'name', 'avatar_url'] }]
+      });
+      res.json(likes.map(l => l.User));
+    } catch (e) {
+      res.status(500).json({ message: 'Ошибка', error: e.message });
+    }
+  },
+
   getAll: async (req, res) => {
     try {
       let { kitchen_id, celebration_id, cooking_id, difficulty, is_private, search, category_id } = req.query;

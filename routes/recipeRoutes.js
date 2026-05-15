@@ -79,6 +79,18 @@ router.get('/random', rc.getRandom);
 router.get('/:id', rc.getById);
 
 /** @swagger
+ * /recipes/{id}/likes:
+ *   get:
+ *     summary: Список пользователей, лайкнувших рецепт
+ *     tags: [Recipes]
+ *     parameters:
+ *       - { in: path, name: id, required: true, schema: { type: integer } }
+ *     responses:
+ *       200: { description: Список пользователей }
+ */
+router.get('/:id/likes', rc.getLikes);
+
+/** @swagger
  * /recipes:
  *   post:
  *     summary: Создать рецепт
