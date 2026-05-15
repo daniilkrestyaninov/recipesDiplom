@@ -36,9 +36,29 @@ const authController = {
       if (!username || !name || !email || !password) {
         return res.status(400).json({ message: 'Заполните все обязательные поля (username, name, email, password)' });
       }
-      if (await User.findOne({ where: { email } })) {
-        return res.status(400).json({ message: 'Пользователь с таким email уже существует' });
+      const existingUser = await User.findOne({ where: { email } });
+      if (existingUser) {
+        if (existingUser.is_verified) {
+          return res.status(400).json({ message: 'Пользователь с таким email уже существует' });
+        } else {
+          // Если пользователь не подтвержден, позволяем "перерегистрироваться"
+          // Обновляем данные и высылаем новый код
+          const hashed = await bcrypt.hash(password, SALT_ROUNDS);
+          const verification_code = Math.floor(100000 + Math.random() * 900000).toString();
+          
+          await existingUser.update({
+            username, name, password: hashed, avatar_url, verification_code, is_verified: false
+          });
+          
+          emailService.sendVerificationEmail(email, verification_code).catch(e => console.error(e));
+          
+          return res.status(201).json({
+            message: 'Регистрация обновлена. Код подтверждения отправлен повторно.',
+            userId: existingUser.id
+          });
+        }
       }
+
       if (await User.findOne({ where: { username } })) {
         return res.status(400).json({ message: 'Username уже занят' });
       }
@@ -79,7 +99,13 @@ const authController = {
       });
       if (!user) return res.status(404).json({ message: 'Пользователь не найден' });
       if (user.is_blocked) return res.status(403).json({ message: 'Аккаунт заблокирован' });
-      if (!user.is_verified) return res.status(403).json({ message: 'Email не подтвержден' });
+      if (!user.is_verified) {
+        return res.status(403).json({ 
+          message: 'Email не подтвержден', 
+          reason: 'EMAIL_NOT_VERIFIED',
+          email: user.email 
+        });
+      }
 
       const valid = await bcrypt.compare(password, user.password);
       if (!valid) return res.status(401).json({ message: 'Неверный пароль' });
