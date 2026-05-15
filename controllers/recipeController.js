@@ -4,7 +4,7 @@ const { Recipe, User, Ingredient, RecipeIngredient, RecipeCategory,
 const { Op, fn, col } = require('sequelize');
 const geminiService = require('../services/geminiService');
 
-const getFullInclude = (separate = true) => [
+const getFullInclude = (separate = false) => [
   { model: User, attributes: ['id', 'username', 'name', 'avatar_url', 'is_blocked'] },
   {
     model: Ingredient,
@@ -217,7 +217,8 @@ const rc = {
         recipeData.taste_averages = { sweet: "0.0", sour: "0.0", salty: "0.0", spicy: "0.0", umami: "0.0" };
       }
 
-      res.json(recipeData);
+      const result = await attachRatings([recipeData]);
+      res.json(result[0]);
     } catch (e) { res.status(500).json({ message: 'Ошибка', error: e.message }); }
   },
 
@@ -271,13 +272,19 @@ const rc = {
 
       let pfcData = { proteins, fats, carbohydrates, calorific, is_ai_pfc: false };
       if (!proteins && !fats && !carbohydrates) {
-        const aiResult = await geminiService.calculatePFC(title, ingredientDetailsForAI);
-        pfcData = { ...aiResult, is_ai_pfc: true };
+        try {
+          const aiResult = await geminiService.calculatePFC(title, ingredientDetailsForAI);
+          if (aiResult) {
+            pfcData = { ...aiResult, is_ai_pfc: true };
+          }
+        } catch (aiErr) {
+          console.error('Ошибка расчета КБЖУ через ИИ:', aiErr.message);
+        }
       }
 
       const recipe = await Recipe.create({
         user_id: req.user.id,
-        title, description, difficulty: String(difficulty), image_url,
+        title, description, difficulty: difficulty ? String(difficulty) : '1', image_url,
         is_private: (is_generated || is_parsed) ? true : (is_private || false),
         is_generated: is_generated || false,
         is_parsed: is_parsed || false,
@@ -325,7 +332,9 @@ const rc = {
         }
       }
 
-      res.status(201).json(await Recipe.findByPk(recipe.id, { include: getFullInclude() }));
+      const finalRecipe = await Recipe.findByPk(recipe.id, { include: getFullInclude() });
+      const [withRatings] = await attachRatings([finalRecipe]);
+      res.status(201).json(withRatings);
     } catch (e) {
       await t.rollback();
       res.status(500).json({ message: 'Ошибка создания', error: e.message });
@@ -416,7 +425,9 @@ const rc = {
 
       await t.commit();
       console.log('Transaction committed for update');
-      res.json(await Recipe.findByPk(r.id, { include: getFullInclude() }));
+      const finalRecipe = await Recipe.findByPk(r.id, { include: getFullInclude() });
+      const [withRatings] = await attachRatings([finalRecipe]);
+      res.json(withRatings);
     } catch (e) {
       if (t) await t.rollback();
       res.status(500).json({ message: 'Ошибка обновления', error: e.message });
