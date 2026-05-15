@@ -30,6 +30,8 @@ const authController = {
   // POST /auth/register
   register: async (req, res) => {
     try {
+      console.log('--- START REGISTER ---');
+      console.log('Body:', req.body);
       const { username, name, email, password, avatar_url } = req.body;
       if (!username || !name || !email || !password) {
         return res.status(400).json({ message: 'Заполните все обязательные поля (username, name, email, password)' });
@@ -53,11 +55,10 @@ const authController = {
         verification_code: verification_code
       });
 
-      try {
-        await emailService.sendVerificationEmail(email, verification_code);
-      } catch (mailErr) {
+      // Отправляем email асинхронно, чтобы не задерживать ответ (предотвращает таймауты)
+      emailService.sendVerificationEmail(email, verification_code).catch(mailErr => {
         console.error('Ошибка отправки email:', mailErr);
-      }
+      });
 
       res.status(201).json({
         message: 'Регистрация успешна.',
@@ -240,11 +241,10 @@ const authController = {
       const code = Math.floor(100000 + Math.random() * 900000).toString();
       await user.update({ verification_code: code });
 
-      try {
-        await emailService.sendVerificationEmail(email, code);
-      } catch (mailErr) {
+      // Отправляем email асинхронно
+      emailService.sendVerificationEmail(email, code).catch(mailErr => {
         console.error('Ошибка переотправки email:', mailErr);
-      }
+      });
 
       res.json({ message: 'Новый код отправлен на email' });
     } catch (err) {
