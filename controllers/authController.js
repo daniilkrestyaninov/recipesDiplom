@@ -49,11 +49,15 @@ const authController = {
         password: hashed,
         role_id: 2,
         avatar_url: avatar_url || null,
-        is_verified: true, // Bypass verification for tests
-        verification_code: null
+        is_verified: false,
+        verification_code: verification_code
       });
 
-      // await emailService.sendVerificationEmail(email, verification_code);
+      try {
+        await emailService.sendVerificationEmail(email, verification_code);
+      } catch (mailErr) {
+        console.error('Ошибка отправки email:', mailErr);
+      }
 
       res.status(201).json({
         message: 'Регистрация успешна.',
@@ -74,7 +78,7 @@ const authController = {
       });
       if (!user) return res.status(404).json({ message: 'Пользователь не найден' });
       if (user.is_blocked) return res.status(403).json({ message: 'Аккаунт заблокирован' });
-      // if (!user.is_verified) return res.status(403).json({ message: 'Email не подтвержден' });
+      if (!user.is_verified) return res.status(403).json({ message: 'Email не подтвержден' });
 
       const valid = await bcrypt.compare(password, user.password);
       if (!valid) return res.status(401).json({ message: 'Неверный пароль' });
@@ -217,6 +221,34 @@ const authController = {
       res.json({ message: 'Email успешно подтвержден' });
     } catch (err) {
       res.status(500).json({ message: 'Ошибка при подтверждении email', error: err.message });
+    }
+  },
+
+  // POST /auth/resend-code
+  resendVerificationCode: async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) return res.status(400).json({ message: 'Email обязателен' });
+
+      const user = await User.findOne({ where: { email } });
+      if (!user) return res.status(404).json({ message: 'Пользователь не найден' });
+
+      if (user.is_verified) {
+        return res.status(400).json({ message: 'Email уже подтвержден' });
+      }
+
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      await user.update({ verification_code: code });
+
+      try {
+        await emailService.sendVerificationEmail(email, code);
+      } catch (mailErr) {
+        console.error('Ошибка переотправки email:', mailErr);
+      }
+
+      res.json({ message: 'Новый код отправлен на email' });
+    } catch (err) {
+      res.status(500).json({ message: 'Ошибка', error: err.message });
     }
   },
 };

@@ -156,4 +156,25 @@ router.post('/reset-password', c.resetPassword);
  */
 router.post('/verify-email', c.verifyEmail);
 
+/**
+ * @swagger
+ * /auth/resend-code:
+ *   post:
+ *     summary: Переотправка кода подтверждения
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email: { type: string }
+ *     responses:
+ *       200: { description: Код переотправлен }
+ *       404: { description: Пользователь не найден }
+ */
+router.post('/resend-code', c.resendVerificationCode);
+
 module.exports = router;
