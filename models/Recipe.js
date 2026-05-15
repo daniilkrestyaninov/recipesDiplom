@@ -76,6 +76,10 @@ const Recipe = sequelize.define('Recipe', {
     type: DataTypes.BOOLEAN,
     defaultValue: false,
   },
+  is_parsed: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+  },
 }, {
   underscored: true,
 });

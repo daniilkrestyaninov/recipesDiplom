@@ -44,7 +44,7 @@ router.get('/analytics', auth, isAdmin, admin.getAnalytics);
  *     responses:
  *       200: { description: Массив пользователей }
  */
-router.get('/users', auth, isAdmin, admin.getUsers);
+router.get('/users', auth, staff, admin.getUsers);
 
 /** @swagger
  * /admin/users/{id}/block:

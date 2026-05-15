@@ -187,7 +187,7 @@ const rc = {
   create: async (req, res) => {
     const t = await sequelize.transaction();
     try {
-      const { title, description, difficulty, image_url, is_private, kitchen_id, celebration_id, cooking_id, portion, calorific, cooking_time, ingredients = [], steps = [], categories = [], proteins, fats, carbohydrates, is_generated } = req.body;
+      const { title, description, difficulty, image_url, is_private, kitchen_id, celebration_id, cooking_id, portion, calorific, cooking_time, ingredients = [], steps = [], categories = [], proteins, fats, carbohydrates, is_generated, is_parsed } = req.body;
 
       const ingredientDetailsForAI = [];
       const ingredientLinks = [];
@@ -233,8 +233,9 @@ const rc = {
       const recipe = await Recipe.create({
         user_id: req.user.id,
         title, description, difficulty: String(difficulty), image_url,
-        is_private: is_generated ? true : (is_private || false),
+        is_private: (is_generated || is_parsed) ? true : (is_private || false),
         is_generated: is_generated || false,
+        is_parsed: is_parsed || false,
         kitchen_id, celebration_id, cooking_id, portion,
         calorific: pfcData.calorific,
         proteins: pfcData.proteins,
@@ -299,19 +300,21 @@ const rc = {
         return res.status(403).json({ message: 'Нет прав для редактирования' });
       }
 
-      const { title, description, difficulty, image_url, is_private, kitchen_id, celebration_id, cooking_id, portion, calorific, cooking_time, ingredients, steps, categories, proteins, fats, carbohydrates, is_generated } = req.body;
+      const { title, description, difficulty, image_url, is_private, kitchen_id, celebration_id, cooking_id, portion, calorific, cooking_time, ingredients, steps, categories, proteins, fats, carbohydrates, is_generated, is_parsed } = req.body;
 
-      // Запрещаем делать сгенерированные рецепты публичными
-      if (r.is_generated && is_private === false) {
+      // Запрещаем делать сгенерированные или спарсенные рецепты публичными
+      if ((r.is_generated || r.is_parsed) && is_private === false) {
         await t.rollback();
-        return res.status(400).json({ message: 'Сгенерированные ИИ рецепты должны оставаться приватными' });
+        return res.status(400).json({ message: 'Сгенерированные ИИ или спарсенные рецепты должны оставаться приватными' });
       }
 
       // Обновляем основные поля
       await r.update({
         title, description, difficulty: difficulty ? String(difficulty) : r.difficulty,
         image_url, is_private, kitchen_id, celebration_id, cooking_id, portion,
-        calorific, proteins, fats, carbohydrates, cooking_time, is_generated
+        calorific, proteins, fats, carbohydrates, cooking_time, 
+        is_generated: is_generated !== undefined ? is_generated : r.is_generated,
+        is_parsed: is_parsed !== undefined ? is_parsed : r.is_parsed
       }, { transaction: t });
 
       // Обновляем ингредиенты (если прислали)
