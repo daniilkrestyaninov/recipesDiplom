@@ -22,6 +22,7 @@ const AuditLog = require('./AuditLog');
 const DeviceToken = require('./DeviceToken');
 const DietPlan = require('./DietPlan');
 const DietPlanRecipe = require('./DietPlanRecipe');
+const Appeal = require('./Appeal');
 
 // ── User & Role ──────────────────────────────────────────────
 Role.hasMany(User, { foreignKey: 'role_id' });
@@ -38,6 +39,10 @@ Recipe.hasMany(MenuOfTheWeek, { foreignKey: 'recipe_id' });
 // ── Verification Requests ────────────────────────────────────
 User.hasMany(VerificationRequest, { foreignKey: 'user_id' });
 VerificationRequest.belongsTo(User, { foreignKey: 'user_id' });
+
+// ── Appeals ──────────────────────────────────────────────────
+User.hasMany(Appeal, { foreignKey: 'user_id' });
+Appeal.belongsTo(User, { foreignKey: 'user_id' });
 
 // ── Audit Logs ───────────────────────────────────────────────
 User.hasMany(AuditLog, { foreignKey: 'admin_id' });
@@ -199,4 +204,5 @@ module.exports = {
   DeviceToken,
   DietPlan,
   DietPlanRecipe,
+  Appeal,
 };

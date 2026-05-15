@@ -3,6 +3,7 @@ const router = express.Router();
 const c = require('../controllers/userController');
 const social = require('../controllers/socialController');
 const auth = require('../middleware/authMiddleware');
+const checkNotBlocked = require('../middleware/blockMiddleware');
 const { maybeAuth } = auth;
 
 /**
@@ -42,7 +43,7 @@ router.get('/me', auth, c.getMe);
  *     responses:
  *       200: { description: Обновлённый профиль }
  */
-router.patch('/me', auth, c.updateMe);
+router.patch('/me', auth, checkNotBlocked, c.updateMe);
 
 /** @swagger
  * /users/me:
@@ -100,7 +101,7 @@ router.get('/:id', maybeAuth, c.getUserById);
  *     responses:
  *       201: { description: Подписка оформлена }
  */
-router.post('/:id/follow', auth, social.follow);
+router.post('/:id/follow', auth, checkNotBlocked, social.follow);
 
 /** @swagger
  * /users/{id}/follow:
@@ -180,6 +181,24 @@ router.get('/:id/recipes', maybeAuth, c.getUserRecipes);
  *     responses:
  *       201: { description: Заявка создана }
  */
-router.post('/verify-request', auth, c.requestVerification);
+router.post('/verify-request', auth, checkNotBlocked, c.requestVerification);
+
+/** @swagger
+ * /users/me/appeal:
+ *   post:
+ *     summary: Подать апелляцию на блокировку
+ *     tags: [Users]
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               message: { type: string }
+ *     responses:
+ *       201: { description: Апелляция создана }
+ */
+router.post('/me/appeal', auth, c.createAppeal);
 
 module.exports = router;

@@ -78,6 +78,13 @@ const userController = {
         ],
       });
       if (!user) return res.status(404).json({ message: 'Пользователь не найден' });
+      
+      // Скрываем заблокированных пользователей от других
+      const isOwner = req.user && Number(req.user.id) === Number(user.id);
+      const isAdmin = req.user && req.user.role === 'Admin';
+      if (user.is_blocked && !isOwner && !isAdmin) {
+        return res.status(404).json({ message: 'Пользователь заблокирован' });
+      }
 
       // Статистика
       const recipesCount = await Recipe.count({ where: { user_id: req.params.id } });
@@ -156,6 +163,20 @@ const userController = {
       await notificationController.sendPushToRole('Admin', 'Новая заявка на верификацию', `Пользователь просит верифицировать профиль: ${full_name}`);
 
       res.status(201).json({ message: 'Заявка отправлена', request });
+    } catch (err) {
+      res.status(500).json({ message: 'Ошибка', error: err.message });
+    }
+  },
+
+  // POST /users/me/appeal
+  createAppeal: async (req, res) => {
+    try {
+      const { message } = req.body;
+      if (!message) return res.status(400).json({ message: 'Текст апелляции обязателен' });
+      
+      const { Appeal } = require('../models');
+      const appeal = await Appeal.create({ user_id: req.user.id, message });
+      res.status(201).json({ message: 'Апелляция отправлена на рассмотрение', appeal });
     } catch (err) {
       res.status(500).json({ message: 'Ошибка', error: err.message });
     }

@@ -4,6 +4,7 @@ const rc = require('../controllers/recipeController');
 const social = require('../controllers/socialController');
 const comment = require('../controllers/commentController');
 const auth = require('../middleware/authMiddleware');
+const checkNotBlocked = require('../middleware/blockMiddleware');
 const maybeAuth = require('../middleware/maybeAuth');
 
 /**
@@ -120,7 +121,7 @@ router.get('/:id/likes', rc.getLikes);
  *     responses:
  *       201: { description: Рецепт создан }
  */
-router.post('/', auth, rc.create);
+router.post('/', auth, checkNotBlocked, rc.create);
 
 /** @swagger
  * /recipes/{id}:
@@ -133,7 +134,7 @@ router.post('/', auth, rc.create);
  *     responses:
  *       200: { description: Рецепт обновлён }
  */
-router.put('/:id', auth, rc.update);
+router.patch('/:id', auth, checkNotBlocked, rc.update);
 
 /** @swagger
  * /recipes/{id}:
@@ -146,7 +147,7 @@ router.put('/:id', auth, rc.update);
  *     responses:
  *       200: { description: Рецепт удалён }
  */
-router.delete('/:id', auth, rc.delete);
+router.delete('/:id', auth, checkNotBlocked, rc.delete);
 
 /** @swagger
  * /recipes/{id}/personal-note:
@@ -168,7 +169,7 @@ router.delete('/:id', auth, rc.delete);
  *     responses:
  *       200: { description: Заметка сохранена }
  */
-router.patch('/:id/personal-note', auth, rc.upsertPersonalNote);
+router.patch('/:id/personal-note', auth, checkNotBlocked, rc.upsertPersonalNote);
 
 /** @swagger
  * /recipes/{id}/export:
@@ -193,7 +194,7 @@ router.get('/:id/export', rc.exportIngredients);
  *     responses:
  *       201: { description: Отмечено }
  */
-router.post('/:id/cooked', auth, rc.markCooked);
+router.post('/:id/cooked', auth, checkNotBlocked, rc.markCooked);
 
 // ── Шаги и ингредиенты ──────────────────────────────
 
@@ -209,7 +210,7 @@ router.post('/:id/cooked', auth, rc.markCooked);
  *     responses:
  *       200: { description: Шаг обновлён }
  */
-router.patch('/:id/steps/:step_id', auth, rc.updateStep);
+router.patch('/:id/steps/:step_id', auth, checkNotBlocked, rc.updateStep);
 
 /** @swagger
  * /recipes/{id}/ingredients/{ing_id}:
@@ -223,7 +224,7 @@ router.patch('/:id/steps/:step_id', auth, rc.updateStep);
  *     responses:
  *       200: { description: Ингредиент удалён }
  */
-router.delete('/:id/ingredients/:ing_id', auth, rc.removeIngredient);
+router.delete('/:id/ingredients/:ing_id', auth, checkNotBlocked, rc.removeIngredient);
 
 // ── Лайки, избранное, комментарии ────────────────────
 
@@ -238,7 +239,7 @@ router.delete('/:id/ingredients/:ing_id', auth, rc.removeIngredient);
  *     responses:
  *       201: { description: Лайк добавлен }
  */
-router.post('/:id/like', auth, social.like);
+router.post('/:id/like', auth, checkNotBlocked, social.like);
 
 /** @swagger
  * /recipes/{id}/like:
@@ -271,7 +272,7 @@ router.delete('/:id/like', auth, social.unlike);
  *     responses:
  *       201: { description: Добавлено }
  */
-router.post('/:id/favorite', auth, social.addFavorite);
+router.post('/:id/favorite', auth, checkNotBlocked, social.addFavorite);
 
 /** @swagger
  * /recipes/{id}/favorite:
@@ -284,7 +285,7 @@ router.post('/:id/favorite', auth, social.addFavorite);
  *     responses:
  *       200: { description: Удалено }
  */
-router.delete('/:id/favorite', auth, social.removeFavorite);
+router.delete('/:id/favorite', auth, checkNotBlocked, social.removeFavorite);
 
 /** @swagger
  * /recipes/{id}/comments:
@@ -325,6 +326,6 @@ router.get('/:id/comments', maybeAuth, comment.getByRecipe);
  *     responses:
  *       201: { description: Комментарий добавлен }
  */
-router.post('/:id/comments', auth, comment.createForRecipe);
+router.post('/:id/comments', auth, checkNotBlocked, comment.createForRecipe);
 
 module.exports = router;

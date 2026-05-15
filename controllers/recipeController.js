@@ -5,7 +5,7 @@ const { Op, fn, col } = require('sequelize');
 const geminiService = require('../services/geminiService');
 
 const getFullInclude = () => [
-  { model: User, attributes: ['id', 'username', 'name', 'avatar_url'] },
+  { model: User, attributes: ['id', 'username', 'name', 'avatar_url', 'is_blocked'] },
   {
     model: Ingredient,
     as: 'Ingredients',
@@ -99,6 +99,14 @@ const rc = {
       ];
 
       const include = getFullInclude();
+      // Не показываем рецепты заблокированных пользователей для всех, кроме админов
+      if (!req.user || req.user.role !== 'Admin') {
+        const userIncl = include.find(i => i.model === User);
+        if (userIncl) {
+          userIncl.where = { is_blocked: false };
+        }
+      }
+
       if (category_id) {
         const catIdx = include.findIndex(i => i.as === 'Categories');
         if (catIdx !== -1) {
@@ -148,8 +156,15 @@ const rc = {
 
   getById: async (req, res) => {
     try {
-      const r = await Recipe.findByPk(req.params.id, { include: getFullInclude() });
-      if (!r) return res.status(404).json({ message: 'Рецепт не найден' });
+      const include = getFullInclude();
+      // Если не админ, проверяем, не заблокирован ли автор
+      if (!req.user || req.user.role !== 'Admin') {
+        const userIncl = include.find(i => i.model === User);
+        if (userIncl) userIncl.where = { is_blocked: false };
+      }
+
+      const r = await Recipe.findByPk(req.params.id, { include });
+      if (!r) return res.status(404).json({ message: 'Рецепт не найден или автор заблокирован' });
 
       // Увеличиваем счетчик просмотров при каждом открытии
       await r.increment('views_count');
@@ -194,6 +209,14 @@ const rc = {
     const t = await sequelize.transaction();
     try {
       const { title, description, difficulty, image_url, is_private, kitchen_id, celebration_id, cooking_id, portion, calorific, cooking_time, ingredients = [], steps = [], categories = [], proteins, fats, carbohydrates, is_generated, is_parsed } = req.body;
+
+      // Валидация
+      if (!title || title.trim().length < 3) return res.status(400).json({ message: 'Название рецепта слишком короткое' });
+      if (!description || description.trim().length < 5) return res.status(400).json({ message: 'Описание слишком короткое' });
+      if (!portion || portion < 1) return res.status(400).json({ message: 'Укажите корректное количество порций' });
+      if (!cooking_time || cooking_time < 1) return res.status(400).json({ message: 'Укажите корректное время приготовления' });
+      if (ingredients.length === 0) return res.status(400).json({ message: 'Рецепт должен содержать хотя бы один ингредиент' });
+      if (steps.length === 0) return res.status(400).json({ message: 'Рецепт должен содержать хотя бы один шаг' });
 
       const ingredientDetailsForAI = [];
       const ingredientLinks = [];

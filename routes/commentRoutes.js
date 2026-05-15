@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const cc = require('../controllers/commentController');
 const auth = require('../middleware/authMiddleware');
+const checkNotBlocked = require('../middleware/blockMiddleware');
 
 /**
  * @swagger
@@ -21,7 +22,7 @@ const auth = require('../middleware/authMiddleware');
  *     responses:
  *       200: { description: Удалён }
  */
-router.delete('/:id', auth, cc.delete);
+router.delete('/:id', auth, checkNotBlocked, cc.delete);
 
 /** @swagger
  * /comments/{id}/like:
@@ -34,6 +35,6 @@ router.delete('/:id', auth, cc.delete);
  *     responses:
  *       200: { description: Статус лайка изменён }
  */
-router.post('/:id/like', auth, cc.toggleLike);
+router.post('/:id/like', auth, checkNotBlocked, cc.toggleLike);
 
 module.exports = router;

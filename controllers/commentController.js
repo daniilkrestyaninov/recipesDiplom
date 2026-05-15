@@ -49,7 +49,15 @@ const cc = {
   createForRecipe: async (req, res) => {
     try {
       const { content, rating, parent_comment_id, taste_sweet, taste_sour, taste_salty, taste_spicy, taste_umami } = req.body;
-      if (!content) return res.status(400).json({ message: 'content обязателен' });
+      
+      // Валидация комментария
+      if (!content || content.trim().length < 2) return res.status(400).json({ message: 'Комментарий слишком короткий' });
+      if (!parent_comment_id && (!rating || rating < 1 || rating > 5)) {
+        return res.status(400).json({ message: 'Оценка (1-5) обязательна для основного отзыва' });
+      }
+      if (typeof taste_sweet !== 'number' || typeof taste_sour !== 'number' || typeof taste_salty !== 'number' || typeof taste_spicy !== 'number' || typeof taste_umami !== 'number') {
+        return res.status(400).json({ message: 'Оценки вкусовых параметров обязательны' });
+      }
       const comment = await Comment.create({
         user_id: req.user.id, recipe_id: req.params.id,
         content, rating, parent_comment_id: parent_comment_id || null,
