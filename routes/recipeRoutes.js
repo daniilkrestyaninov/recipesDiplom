@@ -134,7 +134,7 @@ router.post('/', auth, checkNotBlocked, rc.create);
  *     responses:
  *       200: { description: Рецепт обновлён }
  */
-router.patch('/:id', auth, checkNotBlocked, rc.update);
+router.put('/:id', auth, checkNotBlocked, rc.update);
 
 /** @swagger
  * /recipes/{id}:

@@ -225,6 +225,8 @@ const rc = {
   create: async (req, res) => {
     const t = await sequelize.transaction();
     try {
+      console.log('--- START RECIPE CREATE ---');
+      console.log('Body:', JSON.stringify(req.body, null, 2));
       const { title, description, difficulty, image_url, is_private, kitchen_id, celebration_id, cooking_id, portion, calorific, cooking_time, ingredients = [], steps = [], categories = [], proteins, fats, carbohydrates, is_generated, is_parsed } = req.body;
 
       // Валидация
@@ -345,6 +347,9 @@ const rc = {
   update: async (req, res) => {
     const t = await sequelize.transaction();
     try {
+      console.log('--- START RECIPE UPDATE ---');
+      console.log('ID:', req.params.id);
+      console.log('Body:', JSON.stringify(req.body, null, 2));
       const r = await Recipe.findByPk(req.params.id);
       if (!r) {
         await t.rollback();
