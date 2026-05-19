@@ -610,9 +610,34 @@ const rc = {
       console.error('Error in getRecommendations:', e);
       res.status(500).json({ message: 'Ошибка при получении рекомендаций', error: e.message });
     }
+  },
+
+  getMenuOfWeek: async (req, res) => {
+    try {
+      const { MenuOfTheWeek, Recipe } = require('../models');
+      const menu = await MenuOfTheWeek.findAll({
+        include: [{ model: Recipe, include: getFullInclude() }],
+        order: [['day_of_week', 'ASC']]
+      });
+
+      // Attach ratings to recipes
+      const menuJSON = menu.map(m => m.toJSON());
+      const recipes = menuJSON.map(m => m.Recipe).filter(Boolean);
+      const recipesWithRatings = await attachRatings(recipes);
+
+      // Map back to menu
+      const result = menuJSON.map(m => {
+        if (m.Recipe) {
+          m.Recipe = recipesWithRatings.find(r => String(r.id) === String(m.Recipe.id));
+        }
+        return m;
+      });
+
+      res.json(result);
+    } catch (e) {
+      res.status(500).json({ message: 'Ошибка при получении меню недели', error: e.message });
+    }
   }
-
-
 };
 
 module.exports = rc;

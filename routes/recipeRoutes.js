@@ -42,6 +42,7 @@ router.get('/', rc.getAll);
  *       200: { description: Рецепты от подписок }
  */
 router.get('/feed', auth, rc.getFeed);
+router.get('/menu-of-week', auth, rc.getMenuOfWeek);
 
 /** @swagger
  * /recipes/recommendations:
