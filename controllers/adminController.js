@@ -57,6 +57,30 @@ const admin = {
           entity: 'User', 
           entity_id: user.id 
         });
+
+        // Send notifications for role change
+        const newRole = await Role.findByPk(role_id);
+        if (newRole) {
+          const roleName = newRole.name;
+          const roleNameRu = { 'Admin': 'Администратор', 'Moderator': 'Модератор', 'User': 'Пользователь' }[roleName] || roleName;
+          
+          // Create database notification
+          await Notification.create({
+            user_id: user.id,
+            actor_id: req.user.id,
+            type: 'SYSTEM',
+            message: `Ваша роль на платформе изменена на: ${roleNameRu}`
+          });
+
+          // Send FCM push notification
+          const notificationController = require('./notificationController');
+          await notificationController.sendPushToUser(
+            user.id,
+            'Изменение роли',
+            `Администратор изменил вашу роль на: ${roleNameRu}`,
+            { type: 'ROLE_CHANGE', role: roleName }
+          );
+        }
       }
 
       const updatedUser = await User.findByPk(user.id, {
@@ -240,6 +264,8 @@ const admin = {
       const user = await User.findByPk(req.params.id);
       if (!user) return res.status(404).json({ message: 'Пользователь не найден' });
 
+      const oldRoleId = user.role_id;
+
       await user.update({
         name: name !== undefined ? name : user.name,
         username: username !== undefined ? username : user.username,
@@ -251,6 +277,32 @@ const admin = {
       });
 
       await AuditLog.create({ admin_id: req.user.id, action: 'UPDATE_USER', entity: 'User', entity_id: user.id, details: req.body });
+
+      // Send notifications for role change
+      if (role_id !== undefined && oldRoleId !== role_id) {
+        const newRole = await Role.findByPk(role_id);
+        if (newRole) {
+          const roleName = newRole.name;
+          const roleNameRu = { 'Admin': 'Администратор', 'Moderator': 'Модератор', 'User': 'Пользователь' }[roleName] || roleName;
+          
+          // Create database notification
+          await Notification.create({
+            user_id: user.id,
+            actor_id: req.user.id,
+            type: 'SYSTEM',
+            message: `Ваша роль на платформе изменена на: ${roleNameRu}`
+          });
+
+          // Send FCM push notification
+          const notificationController = require('./notificationController');
+          await notificationController.sendPushToUser(
+            user.id,
+            'Изменение роли',
+            `Администратор изменил вашу роль на: ${roleNameRu}`,
+            { type: 'ROLE_CHANGE', role: roleName }
+          );
+        }
+      }
 
       res.json({ message: 'Данные пользователя обновлены', user });
     } catch (e) {
