@@ -30,7 +30,7 @@ const maybeAuth = require('../middleware/maybeAuth');
  *     responses:
  *       200: { description: Список рецептов }
  */
-router.get('/', rc.getAll);
+router.get('/', maybeAuth, rc.getAll);
 
 /** @swagger
  * /recipes/feed:
@@ -66,7 +66,7 @@ router.get('/recommendations', auth, rc.getRecommendations);
  *     responses:
  *       200: { description: Случайный рецепт }
  */
-router.get('/random', rc.getRandom);
+router.get('/random', maybeAuth, rc.getRandom);
 
 /** @swagger
  * /recipes/{id}:
@@ -78,7 +78,7 @@ router.get('/random', rc.getRandom);
  *     responses:
  *       200: { description: Рецепт с ингредиентами, шагами и фото }
  */
-router.get('/:id', rc.getById);
+router.get('/:id', maybeAuth, rc.getById);
 
 /** @swagger
  * /recipes/{id}/likes:
