@@ -1,4 +1,4 @@
-const { Notification, User, Recipe, Comment } = require('../models');
+const { Notification, User, Recipe, Comment, Role } = require('../models');
 const { Op } = require('sequelize');
 
 const notificationController = {
@@ -13,7 +13,12 @@ const notificationController = {
       const { count, rows } = await Notification.findAndCountAll({
         where: { user_id: req.user.id },
         include: [
-          { model: User, as: 'Actor', attributes: ['id', 'username', 'name', 'avatar_url'] },
+          {
+            model: User,
+            as: 'Actor',
+            attributes: ['id', 'username', 'name', 'avatar_url'],
+            include: [{ model: Role, attributes: ['name'] }]
+          },
           { model: Recipe, as: 'Recipe', attributes: ['id', 'title', 'image_url'] },
           { model: Comment, as: 'Comment', attributes: ['id', 'content'] },
         ],
@@ -22,8 +27,23 @@ const notificationController = {
         offset,
       });
 
+      const processedNotifications = rows.map(row => {
+        const plain = row.toJSON();
+        if (plain.Actor) {
+          const roleName = (plain.Actor.Role?.name || 'user').toLowerCase();
+          plain.Actor.role = roleName;
+          if (roleName === 'admin' || roleName === 'moderator') {
+            // Mask the actor details completely!
+            plain.Actor.username = roleName === 'admin' ? 'admin' : 'moderator';
+            plain.Actor.name = roleName === 'admin' ? 'Администратор' : 'Модератор';
+            plain.Actor.avatar_url = null;
+          }
+        }
+        return plain;
+      });
+
       res.json({
-        notifications: rows,
+        notifications: processedNotifications,
         pagination: {
           total: count,
           page,
