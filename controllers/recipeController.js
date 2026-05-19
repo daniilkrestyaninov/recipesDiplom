@@ -90,7 +90,7 @@ const rc = {
 
   getAll: async (req, res) => {
     try {
-      let { kitchen_id, celebration_id, cooking_id, difficulty, is_private, search, category_id } = req.query;
+      let { kitchen_id, celebration_id, cooking_id, difficulty, is_private, search, category_id, user_id } = req.query;
 
       const parseFilter = (val) => {
         if (!val) return null;
@@ -109,12 +109,17 @@ const rc = {
       if (celebration_id) where.celebration_id = { [Op.in]: celebration_id };
       if (cooking_id) where.cooking_id = { [Op.in]: cooking_id };
       if (difficulty) where.difficulty = difficulty;
+      if (user_id) where.user_id = user_id;
 
       // По умолчанию для общей ленты показываем только публичные
       if (is_private !== undefined) {
         where.is_private = is_private === 'true';
       } else {
-        where.is_private = false;
+        if (user_id && req.user && Number(user_id) === req.user.id) {
+          // Разрешаем видеть свои собственные приватные рецепты
+        } else {
+          where.is_private = false;
+        }
       }
 
       if (search) where[Op.or] = [
