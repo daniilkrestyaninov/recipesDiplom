@@ -24,7 +24,7 @@ const getFullInclude = () => [
   },
 ];
 
-const attachRatings = async (recipes) => {
+const attachRatings = async (recipes, userId = null) => {
   if (!recipes || recipes.length === 0) return [];
 
   const recipeIds = recipes.map(r => r.id);
@@ -39,12 +39,37 @@ const attachRatings = async (recipes) => {
     raw: true
   });
 
+  const cookedCounts = await CookedRecipe.findAll({
+    where: { recipe_id: { [Op.in]: recipeIds } },
+    attributes: [
+      'recipe_id',
+      [fn('COUNT', col('id')), 'total_cooked']
+    ],
+    group: ['recipe_id'],
+    raw: true
+  });
+
+  let userCookedIds = new Set();
+  if (userId) {
+    const userCooked = await CookedRecipe.findAll({
+      where: { user_id: userId, recipe_id: { [Op.in]: recipeIds } },
+      attributes: ['recipe_id'],
+      raw: true
+    });
+    userCookedIds = new Set(userCooked.map(c => String(c.recipe_id)));
+  }
+
   return recipes.map(r => {
     const rData = r.toJSON ? r.toJSON() : r;
     const ratingInfo = recipeRatings.find(rt => String(rt.recipe_id) === String(rData.id));
     rData.rating = parseFloat(ratingInfo?.avg_rating || 0).toFixed(1);
     rData.total_reviews = parseInt(ratingInfo?.total_reviews || 0);
     rData.likes_count = rData.Likes ? rData.Likes.length : 0;
+
+    const cookedInfo = cookedCounts.find(c => String(c.recipe_id) === String(rData.id));
+    rData.cooked_count = parseInt(cookedInfo?.total_cooked || 0);
+    rData.is_cooked = userCookedIds.has(String(rData.id));
+
     return rData;
   });
 };
@@ -116,7 +141,7 @@ const rc = {
       }
 
       const recipes = await Recipe.findAll({ where, include, order: [['created_at', 'DESC']] });
-      res.json(await attachRatings(recipes));
+      res.json(await attachRatings(recipes, req.user ? req.user.id : null));
     } catch (e) { res.status(500).json({ message: 'Ошибка получения рецептов', error: e.message }); }
   },
 
@@ -137,7 +162,7 @@ const rc = {
           limit: 20,
           order: [['created_at', 'DESC']],
         });
-        return res.json(await attachRatings(recipes));
+        return res.json(await attachRatings(recipes, req.user ? req.user.id : null));
       }
 
       const include = getFullInclude();
@@ -150,7 +175,7 @@ const rc = {
         order: [['created_at', 'DESC']],
       });
 
-      res.json(await attachRatings(recipes));
+      res.json(await attachRatings(recipes, req.user ? req.user.id : null));
     } catch (e) { res.status(500).json({ message: 'Ошибка ленты', error: e.message }); }
   },
 
@@ -216,7 +241,17 @@ const rc = {
         recipeData.taste_averages = { sweet: "0.0", sour: "0.0", salty: "0.0", spicy: "0.0", umami: "0.0" };
       }
 
-      const result = await attachRatings([recipeData]);
+      // Fetch and attach personal note if user is logged in
+      if (req.user) {
+        const personalNote = await PersonalNote.findOne({
+          where: { user_id: req.user.id, recipe_id: req.params.id }
+        });
+        recipeData.personal_note = personalNote ? personalNote.note : null;
+      } else {
+        recipeData.personal_note = null;
+      }
+
+      const result = await attachRatings([recipeData], req.user ? req.user.id : null);
       res.json(result[0]);
     } catch (e) { res.status(500).json({ message: 'Ошибка', error: e.message }); }
   },
@@ -342,7 +377,7 @@ const rc = {
       }
 
       const finalRecipe = await Recipe.findByPk(recipe.id, { include: getFullInclude() });
-      const [withRatings] = await attachRatings([finalRecipe]);
+      const [withRatings] = await attachRatings([finalRecipe], req.user ? req.user.id : null);
       res.status(201).json(withRatings);
     } catch (e) {
       console.error('CRITICAL ERROR during Recipe Create:', e);
@@ -439,7 +474,7 @@ const rc = {
       await t.commit();
       console.log('Transaction committed for update');
       const finalRecipe = await Recipe.findByPk(r.id, { include: getFullInclude() });
-      const [withRatings] = await attachRatings([finalRecipe]);
+      const [withRatings] = await attachRatings([finalRecipe], req.user ? req.user.id : null);
       res.json(withRatings);
     } catch (e) {
       console.error('CRITICAL ERROR during Recipe Update:', e);
@@ -492,8 +527,15 @@ const rc = {
 
   markCooked: async (req, res) => {
     try {
+      const existing = await CookedRecipe.findOne({
+        where: { user_id: req.user.id, recipe_id: req.params.id }
+      });
+      if (existing) {
+        await existing.destroy();
+        return res.json({ message: 'Отметка приготовлено удалена', cooked: false });
+      }
       const entry = await CookedRecipe.create({ user_id: req.user.id, recipe_id: req.params.id });
-      res.status(201).json({ message: 'Отмечено как приготовленное', data: entry });
+      res.status(201).json({ message: 'Отмечено как приготовленное', cooked: true, data: entry });
     } catch (e) { res.status(500).json({ message: 'Ошибка', error: e.message }); }
   },
 
@@ -599,7 +641,7 @@ const rc = {
       });
 
       // Прикрепляем данные о рейтингах
-      const recipesWithRatings = await attachRatings(recipes);
+      const recipesWithRatings = await attachRatings(recipes, req.user ? req.user.id : null);
 
       // Важно: сортируем результат в JS, чтобы сохранить порядок, 
       // определенный случайным запросом выше.
@@ -623,7 +665,7 @@ const rc = {
       // Attach ratings to recipes
       const menuJSON = menu.map(m => m.toJSON());
       const recipes = menuJSON.map(m => m.Recipe).filter(Boolean);
-      const recipesWithRatings = await attachRatings(recipes);
+      const recipesWithRatings = await attachRatings(recipes, req.user ? req.user.id : null);
 
       // Map back to menu
       const result = menuJSON.map(m => {
