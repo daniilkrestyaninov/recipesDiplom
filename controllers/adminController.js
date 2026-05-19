@@ -1,4 +1,4 @@
-const { User, Recipe, Comment, Like, Role, Category, NationalKitchen, Report, sequelize, MenuOfTheWeek, VerificationRequest, AuditLog, Notification, DeviceToken } = require('../models');
+const { User, Recipe, Comment, Like, Role, Category, NationalKitchen, Report, sequelize, MenuOfTheWeek, VerificationRequest, AuditLog, Notification, DeviceToken, Appeal } = require('../models');
 const { Op } = require('sequelize');
 const adminFirebase = require('firebase-admin');
 const notificationController = require('./notificationController');
@@ -74,8 +74,15 @@ const admin = {
   // POST /admin/users/:id/block
   blockUser: async (req, res) => {
     try {
-      const user = await User.findByPk(req.params.id);
+      const user = await User.findByPk(req.params.id, { include: [Role] });
       if (!user) return res.status(404).json({ message: 'Пользователь не найден' });
+      if (user.Role?.name === 'Admin') {
+        return res.status(403).json({ message: 'Нельзя заблокировать администратора' });
+      }
+      if (Number(user.id) === Number(req.user.id)) {
+        return res.status(400).json({ message: 'Вы не можете заблокировать самого себя' });
+      }
+
       await user.update({ is_blocked: true });
       await AuditLog.create({ admin_id: req.user.id, action: 'BLOCK_USER', entity: 'User', entity_id: user.id });
       
@@ -451,17 +458,35 @@ const admin = {
         return res.status(400).json({ message: 'Необходимо передать массив userIds' });
       }
 
-      await User.update({ is_blocked }, { where: { id: { [Op.in]: userIds } } });
-      await AuditLog.create({ admin_id: req.user.id, action: 'BULK_BLOCK_USERS', details: { userIds, is_blocked } });
+      let targetIds = userIds;
+
+      if (is_blocked) {
+        // Находим пользователей, которых пытаются заблокировать, и исключаем администраторов и себя
+        const usersToBlock = await User.findAll({
+          where: { id: { [Op.in]: userIds } },
+          include: [{ model: Role }]
+        });
+
+        targetIds = usersToBlock
+          .filter(u => u.Role?.name !== 'Admin' && Number(u.id) !== Number(req.user.id))
+          .map(u => u.id);
+
+        if (targetIds.length === 0) {
+          return res.status(400).json({ message: 'Нет подходящих пользователей для блокировки (администраторы исключены)' });
+        }
+      }
+
+      await User.update({ is_blocked }, { where: { id: { [Op.in]: targetIds } } });
+      await AuditLog.create({ admin_id: req.user.id, action: 'BULK_BLOCK_USERS', details: { userIds: targetIds, is_blocked } });
 
       // Отправляем Push каждому заблокированному пользователю
       if (is_blocked) {
-        for (const id of userIds) {
+        for (const id of targetIds) {
           await notificationController.sendPushToUser(id, 'Аккаунт заблокирован', 'Ваш аккаунт был заблокирован администратором.');
         }
       }
 
-      res.json({ message: `Статус блокировки обновлен для ${userIds.length} пользователей` });
+      res.json({ message: `Статус блокировки обновлен для ${targetIds.length} пользователей` });
     } catch (e) {
       res.status(500).json({ message: 'Ошибка при массовой блокировке', error: e.message });
     }

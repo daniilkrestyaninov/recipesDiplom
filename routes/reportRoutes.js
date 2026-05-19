@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const rc = require('../controllers/reportController');
 const auth = require('../middleware/authMiddleware');
+const checkNotBlocked = require('../middleware/blockMiddleware');
 
 /**
  * @swagger
@@ -32,7 +33,7 @@ const auth = require('../middleware/authMiddleware');
  *     responses:
  *       201: { description: Жалоба отправлена }
  */
-router.post('/', auth, rc.create);
+router.post('/', auth, checkNotBlocked, rc.create);
 
 /** @swagger
  * /reports:

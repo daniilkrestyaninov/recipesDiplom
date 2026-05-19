@@ -3,6 +3,7 @@ const router = express.Router();
 const dpc = require('../controllers/dietPlanController');
 const auth = require('../middleware/authMiddleware');
 const { maybeAuth } = require('../middleware/authMiddleware');
+const checkNotBlocked = require('../middleware/blockMiddleware');
 
 /**
  * @swagger
@@ -36,7 +37,7 @@ const { maybeAuth } = require('../middleware/authMiddleware');
  *                     day_of_week: { type: integer, description: '1-7 (Mon-Sun)' }
  *                     meal_order: { type: integer, description: '1-5' }
  */
-router.post('/', auth, dpc.create);
+router.post('/', auth, checkNotBlocked, dpc.create);
 
 /** @swagger
  * /diet-plans:
@@ -79,7 +80,7 @@ router.get('/:id', maybeAuth, dpc.getById);
  *     tags: [DietPlans]
  *     security: [{ bearerAuth: [] }]
  */
-router.patch('/:id', auth, dpc.update);
+router.patch('/:id', auth, checkNotBlocked, dpc.update);
 
 /** @swagger
  * /diet-plans/{id}:
@@ -88,6 +89,6 @@ router.patch('/:id', auth, dpc.update);
  *     tags: [DietPlans]
  *     security: [{ bearerAuth: [] }]
  */
-router.delete('/:id', auth, dpc.delete);
+router.delete('/:id', auth, checkNotBlocked, dpc.delete);
 
 module.exports = router;

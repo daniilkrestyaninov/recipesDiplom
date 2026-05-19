@@ -11,6 +11,14 @@ const VerificationRequest = sequelize.define('VerificationRequest', {
     type: DataTypes.BIGINT,
     allowNull: false,
   },
+  full_name: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  info: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
   status: {
     type: DataTypes.ENUM('pending', 'approved', 'rejected'),
     defaultValue: 'pending',

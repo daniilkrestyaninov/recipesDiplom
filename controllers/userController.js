@@ -155,17 +155,23 @@ const userController = {
   requestVerification: async (req, res) => {
     try {
       const { full_name, info } = req.body;
-      if (!full_name) return res.status(400).json({ message: 'ФИО обязательно' });
+      if (!full_name || !full_name.trim()) return res.status(400).json({ message: 'ФИО обязательно' });
+
+      // Предотвращаем дублирование активных заявок
+      const existing = await VerificationRequest.findOne({ where: { user_id: req.user.id, status: 'pending' } });
+      if (existing) {
+        return res.status(400).json({ message: 'У вас уже есть активная заявка на верификацию' });
+      }
 
       const request = await VerificationRequest.create({
         user_id: req.user.id,
-        full_name,
-        info,
+        full_name: full_name.trim(),
+        info: info ? info.trim() : null,
         status: 'pending'
       });
 
       // Уведомляем админов
-      await notificationController.sendPushToRole('Admin', 'Новая заявка на верификацию', `Пользователь просит верифицировать профиль: ${full_name}`);
+      await notificationController.sendPushToRole('Admin', 'Новая заявка на верификацию', `Пользователь просит верифицировать профиль: ${full_name.trim()}`);
 
       res.status(201).json({ message: 'Заявка отправлена', request });
     } catch (err) {
@@ -177,10 +183,21 @@ const userController = {
   createAppeal: async (req, res) => {
     try {
       const { message } = req.body;
-      if (!message) return res.status(400).json({ message: 'Текст апелляции обязателен' });
+      if (!message || !message.trim()) return res.status(400).json({ message: 'Текст апелляции обязателен' });
       
       const { Appeal } = require('../models');
-      const appeal = await Appeal.create({ user_id: req.user.id, message });
+
+      // Предотвращаем дублирование активных апелляций
+      const existing = await Appeal.findOne({ where: { user_id: req.user.id, status: 'pending' } });
+      if (existing) {
+        return res.status(400).json({ message: 'У вас уже есть активная апелляция на рассмотрении' });
+      }
+
+      const appeal = await Appeal.create({ 
+        user_id: req.user.id, 
+        message: message.trim(),
+        status: 'pending'
+      });
       res.status(201).json({ message: 'Апелляция отправлена на рассмотрение', appeal });
     } catch (err) {
       res.status(500).json({ message: 'Ошибка', error: err.message });
