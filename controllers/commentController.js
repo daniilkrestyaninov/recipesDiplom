@@ -55,13 +55,17 @@ const cc = {
       if (!parent_comment_id && (!rating || rating < 1 || rating > 5)) {
         return res.status(400).json({ message: 'Оценка (1-5) обязательна для основного отзыва' });
       }
-      if (typeof taste_sweet !== 'number' || typeof taste_sour !== 'number' || typeof taste_salty !== 'number' || typeof taste_spicy !== 'number' || typeof taste_umami !== 'number') {
+      if (!parent_comment_id && (typeof taste_sweet !== 'number' || typeof taste_sour !== 'number' || typeof taste_salty !== 'number' || typeof taste_spicy !== 'number' || typeof taste_umami !== 'number')) {
         return res.status(400).json({ message: 'Оценки вкусовых параметров обязательны' });
       }
       const comment = await Comment.create({
         user_id: req.user.id, recipe_id: req.params.id,
-        content, rating, parent_comment_id: parent_comment_id || null,
-        taste_sweet, taste_sour, taste_salty, taste_spicy, taste_umami
+        content, rating: parent_comment_id ? null : rating, parent_comment_id: parent_comment_id || null,
+        taste_sweet: parent_comment_id ? null : taste_sweet,
+        taste_sour: parent_comment_id ? null : taste_sour,
+        taste_salty: parent_comment_id ? null : taste_salty,
+        taste_spicy: parent_comment_id ? null : taste_spicy,
+        taste_umami: parent_comment_id ? null : taste_umami
       });
       const full = await Comment.findByPk(comment.id, {
         include: [{ model: User, as: 'Author', attributes: ['id', 'username', 'avatar_url'] }],
