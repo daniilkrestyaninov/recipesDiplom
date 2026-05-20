@@ -52,11 +52,24 @@ const cc = {
       
       // Валидация комментария
       if (!content || content.trim().length < 2) return res.status(400).json({ message: 'Комментарий слишком короткий' });
-      if (!parent_comment_id && (!rating || rating < 1 || rating > 5)) {
-        return res.status(400).json({ message: 'Оценка (1-5) обязательна для основного отзыва' });
+      
+      // Оценка необязательна, но если передана, должна быть от 1 до 5
+      if (rating !== undefined && rating !== null) {
+        const rVal = Number(rating);
+        if (isNaN(rVal) || rVal < 1 || rVal > 5) {
+          return res.status(400).json({ message: 'Оценка должна быть числом от 1 до 5' });
+        }
       }
-      if (!parent_comment_id && (typeof taste_sweet !== 'number' || typeof taste_sour !== 'number' || typeof taste_salty !== 'number' || typeof taste_spicy !== 'number' || typeof taste_umami !== 'number')) {
-        return res.status(400).json({ message: 'Оценки вкусовых параметров обязательны' });
+
+      // Вкусы необязательны, но если переданы, должны быть от 1 до 5
+      const tastes = { taste_sweet, taste_sour, taste_salty, taste_spicy, taste_umami };
+      for (const [key, val] of Object.entries(tastes)) {
+        if (val !== undefined && val !== null) {
+          const tVal = Number(val);
+          if (isNaN(tVal) || tVal < 1 || tVal > 5) {
+            return res.status(400).json({ message: `Параметр ${key} должен быть числом от 1 до 5` });
+          }
+        }
       }
       const comment = await Comment.create({
         user_id: req.user.id, recipe_id: req.params.id,
