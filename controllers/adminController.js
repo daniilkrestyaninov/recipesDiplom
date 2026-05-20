@@ -7,10 +7,11 @@ const admin = {
   // GET /admin/stats
   getStats: async (req, res) => {
     try {
-      const [users, recipes, comments, likes] = await Promise.all([
+      const [users, recipes, comments, likes, reports, appeals, verifications] = await Promise.all([
         User.count(), Recipe.count(), Comment.count(), Like.count(),
+        Report.count(), Appeal.count(), VerificationRequest.count()
       ]);
-      res.json({ users, recipes, comments, likes });
+      res.json({ users, recipes, comments, likes, reports, appeals, verifications });
     } catch (e) { res.status(500).json({ message: 'Ошибка', error: e.message }); }
   },
 
