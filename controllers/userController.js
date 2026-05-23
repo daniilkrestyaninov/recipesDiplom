@@ -203,6 +203,20 @@ const userController = {
       res.status(500).json({ message: 'Ошибка', error: err.message });
     }
   },
+
+  // GET /users/me/appeal
+  getMyAppeals: async (req, res) => {
+    try {
+      const { Appeal } = require('../models');
+      const appeals = await Appeal.findAll({
+        where: { user_id: req.user.id },
+        order: [['created_at', 'DESC']]
+      });
+      res.json(appeals);
+    } catch (err) {
+      res.status(500).json({ message: 'Ошибка', error: err.message });
+    }
+  },
 };
 
 

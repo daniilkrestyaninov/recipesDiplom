@@ -200,5 +200,6 @@ router.post('/verify-request', auth, checkNotBlocked, c.requestVerification);
  *       201: { description: Апелляция создана }
  */
 router.post('/me/appeal', auth, c.createAppeal);
+router.get('/me/appeal', auth, c.getMyAppeals);
 
 module.exports = router;

@@ -122,10 +122,58 @@ const rc = {
         }
       }
 
-      if (search) where[Op.or] = [
-        { title: { [Op.iLike]: `%${search}%` } },
-        { description: { [Op.iLike]: `%${search}%` } },
-      ];
+      if (search) {
+        const matchingUsers = await User.findAll({
+          where: {
+            [Op.or]: [
+              { name: { [Op.iLike]: `%${search}%` } },
+              { username: { [Op.iLike]: `%${search}%` } },
+            ]
+          },
+          attributes: ['id'],
+          raw: true
+        });
+        const userIds = matchingUsers.map(u => u.id);
+
+        const matchingCategories = await Category.findAll({
+          where: { name: { [Op.iLike]: `%${search}%` } },
+          attributes: ['id'],
+          raw: true
+        });
+        const categoryIds = matchingCategories.map(c => c.id);
+
+        const matchingKitchens = await NationalKitchen.findAll({
+          where: { name: { [Op.iLike]: `%${search}%` } },
+          attributes: ['id'],
+          raw: true
+        });
+        const kitchenIds = matchingKitchens.map(k => k.id);
+
+        const searchConditions = [
+          { title: { [Op.iLike]: `%${search}%` } },
+          { description: { [Op.iLike]: `%${search}%` } },
+        ];
+
+        if (userIds.length > 0) {
+          searchConditions.push({ user_id: { [Op.in]: userIds } });
+        }
+        if (kitchenIds.length > 0) {
+          searchConditions.push({ kitchen_id: { [Op.in]: kitchenIds } });
+        }
+        if (categoryIds.length > 0) {
+          const matchingRecipeCategories = await RecipeCategory.findAll({
+            where: { category_id: { [Op.in]: categoryIds } },
+            attributes: ['recipe_id'],
+            raw: true
+          });
+          const recipeIdsFromCategories = matchingRecipeCategories.map(rc => rc.recipe_id);
+          if (recipeIdsFromCategories.length > 0) {
+            searchConditions.push({ id: { [Op.in]: recipeIdsFromCategories } });
+          }
+        }
+
+        where[Op.or] = searchConditions;
+      }
 
       const include = getFullInclude(category_id ? false : true);
       // Не показываем рецепты заблокированных пользователей для всех, кроме админов
@@ -330,17 +378,23 @@ const rc = {
       console.log('Saving recipe to DB...');
       const recipe = await Recipe.create({
         user_id: req.user.id,
-        title, description, difficulty: difficulty ? String(difficulty) : '1', image_url,
+        title,
+        description,
+        difficulty: difficulty ? String(difficulty) : '1',
+        image_url,
         is_private: (is_generated || is_parsed) ? true : (is_private || false),
         is_generated: is_generated || false,
         is_parsed: is_parsed || false,
-        kitchen_id, celebration_id, cooking_id, portion,
-        calorific: pfcData.calorific,
-        proteins: pfcData.proteins,
-        fats: pfcData.fats,
-        carbohydrates: pfcData.carbohydrates,
+        kitchen_id: kitchen_id ? Number(kitchen_id) : null,
+        celebration_id: celebration_id ? Number(celebration_id) : null,
+        cooking_id: cooking_id ? Number(cooking_id) : null,
+        portion: portion ? Math.round(Number(portion)) : 1,
+        calorific: pfcData.calorific ? Math.round(Number(pfcData.calorific)) : null,
+        proteins: pfcData.proteins ? parseFloat(Number(pfcData.proteins).toFixed(2)) : null,
+        fats: pfcData.fats ? parseFloat(Number(pfcData.fats).toFixed(2)) : null,
+        carbohydrates: pfcData.carbohydrates ? parseFloat(Number(pfcData.carbohydrates).toFixed(2)) : null,
         is_ai_pfc: pfcData.is_ai_pfc,
-        cooking_time
+        cooking_time: cooking_time ? Math.round(Number(cooking_time)) : 1
       }, { transaction: t });
 
       console.log(`Recipe saved. ID: ${recipe.id}. Saving links...`);
@@ -417,9 +471,20 @@ const rc = {
 
       // Обновляем основные поля
       await r.update({
-        title, description, difficulty: difficulty ? String(difficulty) : r.difficulty,
-        image_url, is_private, kitchen_id, celebration_id, cooking_id, portion,
-        calorific, proteins, fats, carbohydrates, cooking_time, 
+        title,
+        description,
+        difficulty: difficulty ? String(difficulty) : r.difficulty,
+        image_url,
+        is_private,
+        kitchen_id: kitchen_id !== undefined ? (kitchen_id ? Number(kitchen_id) : null) : r.kitchen_id,
+        celebration_id: celebration_id !== undefined ? (celebration_id ? Number(celebration_id) : null) : r.celebration_id,
+        cooking_id: cooking_id !== undefined ? (cooking_id ? Number(cooking_id) : null) : r.cooking_id,
+        portion: portion !== undefined ? Math.round(Number(portion)) : r.portion,
+        calorific: calorific !== undefined ? (calorific ? Math.round(Number(calorific)) : null) : r.calorific,
+        proteins: proteins !== undefined ? (proteins ? parseFloat(Number(proteins).toFixed(2)) : null) : r.proteins,
+        fats: fats !== undefined ? (fats ? parseFloat(Number(fats).toFixed(2)) : null) : r.fats,
+        carbohydrates: carbohydrates !== undefined ? (carbohydrates ? parseFloat(Number(carbohydrates).toFixed(2)) : null) : r.carbohydrates,
+        cooking_time: cooking_time !== undefined ? Math.round(Number(cooking_time)) : r.cooking_time,
         is_generated: is_generated !== undefined ? is_generated : r.is_generated,
         is_parsed: is_parsed !== undefined ? is_parsed : r.is_parsed
       }, { transaction: t });
