@@ -23,6 +23,11 @@ const CookedRecipe = sequelize.define('CookedRecipe', {
 }, {
   underscored: true,
   tableName: 'cooked_recipes',
+  indexes: [
+    { fields: ['user_id'] },
+    { fields: ['recipe_id'] },
+    { fields: ['user_id', 'recipe_id'] }
+  ]
 });
 
 module.exports = CookedRecipe;

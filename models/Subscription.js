@@ -23,6 +23,11 @@ const Subscription = sequelize.define('Subscription', {
 }, {
   timestamps: false,
   underscored: true,
+  indexes: [
+    { fields: ['follower_id'] },
+    { fields: ['following_id'] },
+    { fields: ['follower_id', 'following_id'] }
+  ]
 });
 
 module.exports = Subscription;

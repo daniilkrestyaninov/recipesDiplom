@@ -36,6 +36,11 @@ const Comment = sequelize.define('Comment', {
 }, {
   underscored: true,
   tableName: 'comments',
+  indexes: [
+    { fields: ['recipe_id'] },
+    { fields: ['user_id'] },
+    { fields: ['parent_comment_id'] }
+  ]
 });
 
 module.exports = Comment;

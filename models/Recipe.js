@@ -82,6 +82,14 @@ const Recipe = sequelize.define('Recipe', {
   },
 }, {
   underscored: true,
+  indexes: [
+    { fields: ['user_id'] },
+    { fields: ['kitchen_id'] },
+    { fields: ['celebration_id'] },
+    { fields: ['cooking_id'] },
+    { fields: ['is_private'] },
+    { fields: ['created_at'] }
+  ]
 });
 
 module.exports = Recipe;

@@ -32,7 +32,12 @@ const Step = sequelize.define('Step', {
   step_number: { type: DataTypes.INTEGER, allowNull: false },
   image_url: { type: DataTypes.STRING },
   description: { type: DataTypes.TEXT, allowNull: false },
-}, { underscored: true });
+}, { 
+  underscored: true,
+  indexes: [
+    { fields: ['recipe_id'] }
+  ]
+});
 
 const Unit = sequelize.define('Unit', {
   id: { type: DataTypes.BIGINT, primaryKey: true, autoIncrement: true },

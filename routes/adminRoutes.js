@@ -305,4 +305,18 @@ router.get('/appeals', auth, staff, admin.getAppeals);
  */
 router.patch('/appeals/:id', auth, staff, admin.processAppeal);
 
+/** @swagger
+ * /admin/backup:
+ *   get:
+ *     summary: Выгрузить резервную копию базы данных (дамп)
+ *     tags: [Admin]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: Файл дампа базы данных (attachment)
+ *       500:
+ *         description: Ошибка при генерации дампа
+ */
+router.get('/backup', auth, isAdmin, admin.backupDatabase);
+
 module.exports = router;

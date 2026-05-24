@@ -22,6 +22,11 @@ const Favorite = sequelize.define('Favorite', {
 }, {
   underscored: true,
   tableName: 'favorites',
+  indexes: [
+    { fields: ['recipe_id'] },
+    { fields: ['user_id'] },
+    { fields: ['user_id', 'recipe_id'] }
+  ]
 });
 
 module.exports = Favorite;

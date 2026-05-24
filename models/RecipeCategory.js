@@ -18,6 +18,10 @@ const RecipeCategory = sequelize.define('RecipeCategory', {
 }, {
   underscored: true,
   tableName: 'recipe_categories',
+  indexes: [
+    { fields: ['recipe_id'] },
+    { fields: ['category_id'] }
+  ]
 });
 
 module.exports = RecipeCategory;

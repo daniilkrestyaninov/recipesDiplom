@@ -1,5 +1,89 @@
-const { User, Subscription, Like, Favorite, Recipe, Notification } = require('../models');
+const { User, Subscription, Like, Favorite, Recipe, Notification, Ingredient, Step, NationalKitchen, Category, Celebration, TypeCooking, Comment, Unit, CookedRecipe, sequelize } = require('../models');
+const { Op, fn, col } = require('sequelize');
 const notificationController = require('./notificationController');
+
+const getFullInclude = () => [
+  { model: User, attributes: ['id', 'username', 'name', 'avatar_url', 'is_blocked'] },
+  {
+    model: Ingredient,
+    as: 'Ingredients',
+    through: { attributes: ['quantity', 'note'] },
+    include: [{ model: Unit, as: 'Unit' }]
+  },
+  { model: Step, as: 'Steps' },
+  { model: NationalKitchen, as: 'Kitchen' },
+  { model: Celebration, as: 'Celebration' },
+  { model: TypeCooking, as: 'TypeCooking' },
+  { model: Category, as: 'Categories' },
+  { 
+    model: Like, 
+    as: 'Likes', 
+    attributes: ['user_id']
+  },
+];
+
+const attachRatings = async (recipes, userId = null) => {
+  if (!recipes || recipes.length === 0) return [];
+
+  const recipeIds = recipes.map(r => r.id);
+  const recipeRatings = await Comment.findAll({
+    where: { recipe_id: { [Op.in]: recipeIds } },
+    attributes: [
+      'recipe_id',
+      [fn('AVG', col('rating')), 'avg_rating'],
+      [fn('COUNT', col('rating')), 'total_reviews']
+    ],
+    group: ['recipe_id'],
+    raw: true
+  });
+
+  const cookedCounts = await CookedRecipe.findAll({
+    where: { recipe_id: { [Op.in]: recipeIds } },
+    attributes: [
+      'recipe_id',
+      [fn('COUNT', col('id')), 'total_cooked']
+    ],
+    group: ['recipe_id'],
+    raw: true
+  });
+
+  const commentCounts = await Comment.findAll({
+    where: { recipe_id: { [Op.in]: recipeIds } },
+    attributes: [
+      'recipe_id',
+      [fn('COUNT', col('id')), 'total_comments']
+    ],
+    group: ['recipe_id'],
+    raw: true
+  });
+
+  let userCookedIds = new Set();
+  if (userId) {
+    const userCooked = await CookedRecipe.findAll({
+      where: { user_id: userId, recipe_id: { [Op.in]: recipeIds } },
+      attributes: ['recipe_id'],
+      raw: true
+    });
+    userCookedIds = new Set(userCooked.map(c => String(c.recipe_id)));
+  }
+
+  return recipes.map(r => {
+    const rData = r.toJSON ? r.toJSON() : r;
+    const ratingInfo = recipeRatings.find(rt => String(rt.recipe_id) === String(rData.id));
+    rData.rating = parseFloat(ratingInfo?.avg_rating || 0).toFixed(1);
+    rData.total_reviews = parseInt(ratingInfo?.total_reviews || 0);
+    rData.likes_count = rData.Likes ? rData.Likes.length : 0;
+
+    const cookedInfo = cookedCounts.find(c => String(c.recipe_id) === String(rData.id));
+    rData.cooked_count = parseInt(cookedInfo?.total_cooked || 0);
+    rData.is_cooked = userCookedIds.has(String(rData.id));
+
+    const commentInfo = commentCounts.find(c => String(c.recipe_id) === String(rData.id));
+    rData.comments_count = parseInt(commentInfo?.total_comments || 0);
+
+    return rData;
+  });
+};
 
 const sc = {
   follow: async (req, res) => {
@@ -100,10 +184,25 @@ const sc = {
     try {
       const favs = await Favorite.findAll({
         where: { user_id: req.user.id },
-        include: [{ model: Recipe, include: [{ model: User, attributes: ['id', 'username'] }] }],
+        attributes: ['recipe_id'],
         order: [['created_at', 'DESC']],
+        raw: true
       });
-      res.json(favs);
+      const recipeIds = favs.map(f => f.recipe_id);
+      if (recipeIds.length === 0) return res.json([]);
+
+      const recipes = await Recipe.findAll({
+        where: { id: { [Op.in]: recipeIds } },
+        include: getFullInclude()
+      });
+
+      const recipesWithRatings = await attachRatings(recipes, req.user ? req.user.id : null);
+      
+      const sortedRecipes = recipeIds
+        .map(id => recipesWithRatings.find(r => String(r.id) === String(id)))
+        .filter(Boolean);
+
+      res.json(sortedRecipes);
     } catch (e) { res.status(500).json({ message: 'Ошибка', error: e.message }); }
   },
 

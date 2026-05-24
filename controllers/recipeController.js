@@ -17,9 +17,9 @@ const getFullInclude = () => [
   { model: Celebration, as: 'Celebration' },
   { model: TypeCooking, as: 'TypeCooking' },
   { model: Category, as: 'Categories' },
-  { 
-    model: Like, 
-    as: 'Likes', 
+  {
+    model: Like,
+    as: 'Likes',
     attributes: ['user_id']
   },
 ];
@@ -49,6 +49,16 @@ const attachRatings = async (recipes, userId = null) => {
     raw: true
   });
 
+  const commentCounts = await Comment.findAll({
+    where: { recipe_id: { [Op.in]: recipeIds } },
+    attributes: [
+      'recipe_id',
+      [fn('COUNT', col('id')), 'total_comments']
+    ],
+    group: ['recipe_id'],
+    raw: true
+  });
+
   let userCookedIds = new Set();
   if (userId) {
     const userCooked = await CookedRecipe.findAll({
@@ -70,6 +80,9 @@ const attachRatings = async (recipes, userId = null) => {
     rData.cooked_count = parseInt(cookedInfo?.total_cooked || 0);
     rData.is_cooked = userCookedIds.has(String(rData.id));
 
+    const commentInfo = commentCounts.find(c => String(c.recipe_id) === String(rData.id));
+    rData.comments_count = parseInt(commentInfo?.total_comments || 0);
+
     return rData;
   });
 };
@@ -90,7 +103,11 @@ const rc = {
 
   getAll: async (req, res) => {
     try {
-      let { kitchen_id, celebration_id, cooking_id, difficulty, is_private, search, category_id, user_id } = req.query;
+      let { kitchen_id, celebration_id, cooking_id, difficulty, is_private, search, category_id, user_id, page, limit } = req.query;
+
+      const pageNum = parseInt(page) || 1;
+      const limitNum = parseInt(limit) || 20;
+      const offset = (pageNum - 1) * limitNum;
 
       const parseFilter = (val) => {
         if (!val) return null;
@@ -193,7 +210,13 @@ const rc = {
         }
       }
 
-      const recipes = await Recipe.findAll({ where, include, order: [['created_at', 'DESC']] });
+      const recipes = await Recipe.findAll({
+        where,
+        include,
+        order: [['created_at', 'DESC']],
+        limit: limitNum,
+        offset: offset
+      });
       res.json(await attachRatings(recipes, req.user ? req.user.id : null));
     } catch (e) { res.status(500).json({ message: 'Ошибка получения рецептов', error: e.message }); }
   },
@@ -511,8 +534,8 @@ const rc = {
           }
         }
         if (ingredientLinks.length) {
-            console.log('Creating new ingredients:', ingredientLinks.length);
-            await RecipeIngredient.bulkCreate(ingredientLinks, { transaction: t });
+          console.log('Creating new ingredients:', ingredientLinks.length);
+          await RecipeIngredient.bulkCreate(ingredientLinks, { transaction: t });
         }
       }
 
@@ -522,13 +545,13 @@ const rc = {
         const delStep = await Step.destroy({ where: { recipe_id: r.id }, transaction: t });
         console.log('Deleted steps:', delStep);
         if (steps.length) {
-            console.log('Creating new steps:', steps.length);
-            await Step.bulkCreate(steps.map((s, idx) => ({
+          console.log('Creating new steps:', steps.length);
+          await Step.bulkCreate(steps.map((s, idx) => ({
             recipe_id: r.id,
             step_number: s.step_number || idx + 1,
             description: s.description,
             image_url: s.image_url
-            })), { transaction: t });
+          })), { transaction: t });
         }
       }
 
@@ -537,7 +560,7 @@ const rc = {
         console.log('Update: destroying categories for recipe', r.id);
         await RecipeCategory.destroy({ where: { recipe_id: r.id }, transaction: t });
         if (categories.length) {
-            await RecipeCategory.bulkCreate(categories.map(catId => ({ recipe_id: r.id, category_id: catId })), { transaction: t });
+          await RecipeCategory.bulkCreate(categories.map(catId => ({ recipe_id: r.id, category_id: catId })), { transaction: t });
         }
       }
 

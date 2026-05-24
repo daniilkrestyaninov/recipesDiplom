@@ -614,6 +614,57 @@ const admin = {
     } catch (e) {
       res.status(500).json({ message: 'Ошибка при обработке апелляции', error: e.message });
     }
+  },
+
+  // GET /admin/backup
+  backupDatabase: async (req, res) => {
+    try {
+      const { exec } = require('child_process');
+      const fs = require('fs');
+      const path = require('path');
+      
+      const dbConfig = sequelize.connectionManager.config;
+      const backupDir = path.join(__dirname, '../backups');
+      if (!fs.existsSync(backupDir)) {
+        fs.mkdirSync(backupDir, { recursive: true });
+      }
+      
+      const fileName = `backup_${new Date().toISOString().replace(/[:.]/g, '-')}.sql`;
+      const filePath = path.join(backupDir, fileName);
+      
+      // Set PGPASSWORD env variable to avoid password prompt
+      process.env.PGPASSWORD = dbConfig.password;
+      
+      const pgDumpPath = process.env.PG_DUMP_PATH || 'pg_dump';
+      const cmd = `"${pgDumpPath}" -h ${dbConfig.host} -p ${dbConfig.port || 5432} -U ${dbConfig.username} -F c -b -v -f "${filePath}" ${dbConfig.database}`;
+      
+      exec(cmd, async (error, stdout, stderr) => {
+        // Clean password env
+        delete process.env.PGPASSWORD;
+        
+        if (error) {
+          console.error(`Backup error: ${error.message}`);
+          return res.status(500).json({ message: 'Ошибка при создании резервной копии', error: error.message });
+        }
+        
+        await AuditLog.create({ 
+          admin_id: req.user.id, 
+          action: 'DB_BACKUP', 
+          entity: 'Database', 
+          details: { fileName, filePath } 
+        });
+        
+        res.download(filePath, fileName, (err) => {
+          if (err) {
+            console.error('Download error:', err);
+          }
+          // Safely delete file after download to save space
+          fs.unlink(filePath, () => {});
+        });
+      });
+    } catch (e) {
+      res.status(500).json({ message: 'Ошибка при инициализации резервной копии', error: e.message });
+    }
   }
 };
 

@@ -18,6 +18,11 @@ const Like = sequelize.define('Like', {
 }, {
   underscored: true,
   tableName: 'likes',
+  indexes: [
+    { fields: ['recipe_id'] },
+    { fields: ['user_id'] },
+    { fields: ['user_id', 'recipe_id'] }
+  ]
 });
 
 module.exports = Like;

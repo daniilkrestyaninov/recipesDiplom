@@ -25,6 +25,10 @@ const RecipeIngredient = sequelize.define('RecipeIngredient', {
 }, {
   tableName: 'recipe_ingredients',
   underscored: true,
+  indexes: [
+    { fields: ['recipe_id'] },
+    { fields: ['ingredient_id'] }
+  ]
 });
 
 module.exports = RecipeIngredient;
