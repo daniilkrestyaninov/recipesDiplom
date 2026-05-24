@@ -378,7 +378,7 @@ const rc = {
 
         ingredientLinks.push({
           ingredient_id: ingredientId,
-          quantity: i.unit ? `${i.quantity || ''} ${i.unit}`.trim() : String(i.quantity || ''),
+          quantity: String(i.quantity || ''),
           note: i.note || ''
         });
 
@@ -528,7 +528,7 @@ const rc = {
             ingredientLinks.push({
               recipe_id: r.id,
               ingredient_id: ingredientId,
-              quantity: i.unit ? `${i.quantity || ''} ${i.unit}`.trim() : String(i.quantity || ''),
+              quantity: String(i.quantity || ''),
               note: i.note || ''
             });
           }

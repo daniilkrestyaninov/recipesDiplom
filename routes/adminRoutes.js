@@ -159,7 +159,7 @@ router.delete('/comments/:id', auth, staff, admin.deleteComment);
  *     responses:
  *       201: { description: Добавлено }
  */
-router.get('/menu-of-week', auth, isAdmin, admin.getMenuOfWeek);
+router.get('/menu-of-week', auth, admin.getMenuOfWeek);
 router.post('/menu-of-week', auth, isAdmin, admin.addMenuOfWeek);
 
 /** @swagger
