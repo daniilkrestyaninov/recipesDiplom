@@ -333,13 +333,13 @@ const rc = {
   },
 
   create: async (req, res) => {
-    const t = await sequelize.transaction();
+    let t = null;
     try {
-      console.log('--- START RECIPE CREATE ---');
+      console.log('--- START RECIPE CREATE (OPTIMIZED) ---');
       console.log('Body:', JSON.stringify(req.body, null, 2));
       const { title, description, difficulty, image_url, is_private, kitchen_id, celebration_id, cooking_id, portion, calorific, cooking_time, ingredients = [], steps = [], categories = [], proteins, fats, carbohydrates, is_generated, is_parsed } = req.body;
 
-      // Валидация
+      // 1. Валидация входных данных (выполнена первично до открытия транзакции)
       if (!title || title.trim().length < 3) return res.status(400).json({ message: 'Название рецепта слишком короткое' });
       if (!description || description.trim().length < 5) return res.status(400).json({ message: 'Описание слишком короткое' });
       if (!portion || portion < 1) return res.status(400).json({ message: 'Укажите корректное количество порций' });
@@ -347,45 +347,70 @@ const rc = {
       if (ingredients.length === 0) return res.status(400).json({ message: 'Рецепт должен содержать хотя бы один ингредиент' });
       if (steps.length === 0) return res.status(400).json({ message: 'Рецепт должен содержать хотя бы один шаг' });
 
-      const ingredientDetailsForAI = [];
-      const ingredientLinks = [];
-
-      console.log('Validating ingredients...');
-      for (const i of ingredients) {
-        let ingredientId = i.id;
-        let ingredientName = i.name;
-        let ingredientUnit = '';
-
-        if (!ingredientId && ingredientName) {
-          console.log(`Creating ingredient: ${ingredientName}`);
-          const [ing] = await Ingredient.findOrCreate({
-            where: { name: ingredientName },
-            defaults: { unit_id: 1 }, // Default to first unit if not provided
-            transaction: t
-          });
-          const ingWithUnit = await Ingredient.findByPk(ing.id, { include: [{ model: Unit, as: 'Unit' }], transaction: t });
-          ingredientId = ing.id;
-          ingredientName = ing.name;
-          ingredientUnit = ingWithUnit?.Unit?.short_name || '';
-        } else if (ingredientId) {
-          console.log(`Using existing ingredient ID: ${ingredientId}`);
-          const ing = await Ingredient.findByPk(ingredientId, { include: [{ model: Unit, as: 'Unit' }], transaction: t });
-          if (ing) {
-            ingredientName = ing.name;
-            ingredientUnit = ing.Unit?.short_name || '';
-          }
-        }
-
-        ingredientLinks.push({
-          ingredient_id: ingredientId,
-          quantity: String(i.quantity || ''),
-          note: i.note || ''
+      // 2. Пакетное разрешение ингредиентов (до открытия транзакции)
+      console.log('Batch resolving ingredients...');
+      const existingIds = ingredients.filter(i => i.id).map(i => i.id);
+      let existingIngredients = [];
+      if (existingIds.length > 0) {
+        existingIngredients = await Ingredient.findAll({
+          where: { id: { [Op.in]: existingIds } },
+          include: [{ model: Unit, as: 'Unit' }]
         });
+      }
+      const existingMap = new Map(existingIngredients.map(ing => [Number(ing.id), ing]));
 
-        ingredientDetailsForAI.push(`${ingredientName} ${i.quantity || ''} ${ingredientUnit} ${i.note || ''}`);
+      const newNames = [...new Set(ingredients.filter(i => !i.id && i.name).map(i => i.name.trim()))];
+      let foundByName = [];
+      if (newNames.length > 0) {
+        foundByName = await Ingredient.findAll({
+          where: { name: { [Op.in]: newNames } },
+          include: [{ model: Unit, as: 'Unit' }]
+        });
+      }
+      const nameMap = new Map(foundByName.map(ing => [ing.name.toLowerCase(), ing]));
+
+      const toCreateNames = newNames.filter(name => !nameMap.has(name.toLowerCase()));
+      if (toCreateNames.length > 0) {
+        console.log(`Bulk creating ${toCreateNames.length} ingredients...`);
+        const createdIngredients = await Ingredient.bulkCreate(
+          toCreateNames.map(name => ({ name, unit_id: 1 }))
+        );
+        const createdIds = createdIngredients.map(ing => ing.id);
+        const freshCreated = await Ingredient.findAll({
+          where: { id: { [Op.in]: createdIds } },
+          include: [{ model: Unit, as: 'Unit' }]
+        });
+        for (const ing of freshCreated) {
+          nameMap.set(ing.name.toLowerCase(), ing);
+        }
       }
 
-      console.log('Calculating PFC...');
+      const ingredientLinks = [];
+      const ingredientDetailsForAI = [];
+
+      for (const i of ingredients) {
+        let resolvedIng = null;
+        if (i.id) {
+          resolvedIng = existingMap.get(Number(i.id));
+        } else if (i.name) {
+          resolvedIng = nameMap.get(i.name.trim().toLowerCase());
+        }
+
+        if (resolvedIng) {
+          ingredientLinks.push({
+            ingredient_id: resolvedIng.id,
+            quantity: String(i.quantity || ''),
+            note: i.note || ''
+          });
+          const unitShort = resolvedIng.Unit?.short_name || '';
+          ingredientDetailsForAI.push(`${resolvedIng.name} ${i.quantity || ''} ${unitShort} ${i.note || ''}`);
+        } else {
+          console.warn(`Could not resolve ingredient: id=${i.id}, name=${i.name}`);
+        }
+      }
+
+      // 3. Вычисление КБЖУ через Gemini API (до открытия транзакции)
+      console.log('Calculating PFC (Outside transaction)...');
       let pfcData = { proteins, fats, carbohydrates, calorific, is_ai_pfc: false };
       if (!proteins && !fats && !carbohydrates) {
         try {
@@ -398,7 +423,9 @@ const rc = {
         }
       }
 
-      console.log('Saving recipe to DB...');
+      // 4. Открытие БД-транзакции только для сохранения рецепта и связей
+      t = await sequelize.transaction();
+      console.log('Saving recipe to DB inside transaction...');
       const recipe = await Recipe.create({
         user_id: req.user.id,
         title,
@@ -440,7 +467,7 @@ const rc = {
       await t.commit();
       console.log('Transaction committed.');
 
-      // Notification for followers (Async, after commit)
+      // 5. Создание уведомлений подписчикам (асинхронно, после коммита транзакции)
       if (!recipe.is_private) {
         try {
           const followers = await Subscription.findAll({ where: { following_id: req.user.id } });
@@ -469,18 +496,18 @@ const rc = {
   },
 
   update: async (req, res) => {
-    const t = await sequelize.transaction();
+    let t = null;
     try {
-      console.log('--- START RECIPE UPDATE ---');
+      console.log('--- START RECIPE UPDATE (OPTIMIZED) ---');
       console.log('ID:', req.params.id);
       console.log('Body:', JSON.stringify(req.body, null, 2));
+
+      // 1. Проверка существования рецепта и прав (вне транзакции)
       const r = await Recipe.findByPk(req.params.id);
       if (!r) {
-        await t.rollback();
         return res.status(404).json({ message: 'Рецепт не найден' });
       }
       if (Number(r.user_id) !== req.user.id && req.user.role !== 'Admin' && req.user.role !== 'Moderator') {
-        await t.rollback();
         return res.status(403).json({ message: 'Нет прав для редактирования' });
       }
 
@@ -488,9 +515,63 @@ const rc = {
 
       // Запрещаем делать сгенерированные или спарсенные рецепты публичными
       if ((r.is_generated || r.is_parsed) && is_private === false) {
-        await t.rollback();
         return res.status(400).json({ message: 'Сгенерированные ИИ или спарсенные рецепты должны оставаться приватными' });
       }
+
+      // 2. Пакетное разрешение ингредиентов (если прислали) до открытия транзакции
+      let ingredientLinks = [];
+      if (ingredients) {
+        console.log('Batch resolving ingredients for update...');
+        const existingIds = ingredients.filter(i => i.id).map(i => i.id);
+        let existingIngredients = [];
+        if (existingIds.length > 0) {
+          existingIngredients = await Ingredient.findAll({
+            where: { id: { [Op.in]: existingIds } }
+          });
+        }
+        const existingMap = new Map(existingIngredients.map(ing => [Number(ing.id), ing]));
+
+        const newNames = [...new Set(ingredients.filter(i => !i.id && i.name).map(i => i.name.trim()))];
+        let foundByName = [];
+        if (newNames.length > 0) {
+          foundByName = await Ingredient.findAll({
+            where: { name: { [Op.in]: newNames } }
+          });
+        }
+        const nameMap = new Map(foundByName.map(ing => [ing.name.toLowerCase(), ing]));
+
+        const toCreateNames = newNames.filter(name => !nameMap.has(name.toLowerCase()));
+        if (toCreateNames.length > 0) {
+          console.log(`Bulk creating ${toCreateNames.length} ingredients for update...`);
+          const createdIngredients = await Ingredient.bulkCreate(
+            toCreateNames.map(name => ({ name, unit_id: 1 }))
+          );
+          for (const ing of createdIngredients) {
+            nameMap.set(ing.name.toLowerCase(), ing);
+          }
+        }
+
+        for (const i of ingredients) {
+          let ingredientId = i.id;
+          if (!ingredientId && i.name) {
+            const resolvedIng = nameMap.get(i.name.trim().toLowerCase());
+            if (resolvedIng) {
+              ingredientId = resolvedIng.id;
+            }
+          }
+          if (ingredientId) {
+            ingredientLinks.push({
+              recipe_id: r.id,
+              ingredient_id: ingredientId,
+              quantity: String(i.quantity || ''),
+              note: i.note || ''
+            });
+          }
+        }
+      }
+
+      // 3. Открытие БД-транзакции только для обновления данных
+      t = await sequelize.transaction();
 
       // Обновляем основные поля
       await r.update({
@@ -517,22 +598,6 @@ const rc = {
         console.log('Update: destroying ingredients for recipe', r.id);
         const delIng = await RecipeIngredient.destroy({ where: { recipe_id: r.id }, transaction: t });
         console.log('Deleted ingredients:', delIng);
-        const ingredientLinks = [];
-        for (const i of ingredients) {
-          let ingredientId = i.id;
-          if (!ingredientId && i.name) {
-            const [ing] = await Ingredient.findOrCreate({ where: { name: i.name }, defaults: { unit_id: 1 }, transaction: t });
-            ingredientId = ing.id;
-          }
-          if (ingredientId) {
-            ingredientLinks.push({
-              recipe_id: r.id,
-              ingredient_id: ingredientId,
-              quantity: String(i.quantity || ''),
-              note: i.note || ''
-            });
-          }
-        }
         if (ingredientLinks.length) {
           console.log('Creating new ingredients:', ingredientLinks.length);
           await RecipeIngredient.bulkCreate(ingredientLinks, { transaction: t });
