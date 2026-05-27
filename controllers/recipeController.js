@@ -129,12 +129,22 @@ const rc = {
       if (user_id) where.user_id = user_id;
 
       // По умолчанию для общей ленты показываем только публичные
-      if (is_private !== undefined) {
-        where.is_private = is_private === 'true';
-      } else {
-        if (user_id && req.user && Number(user_id) === req.user.id) {
-          // Разрешаем видеть свои собственные приватные рецепты
+      const canSeePrivate = req.user && (
+        (user_id && Number(user_id) === req.user.id) ||
+        req.user.role === 'Admin' ||
+        req.user.role === 'Moderator'
+      );
+
+      if (is_private === 'true') {
+        if (canSeePrivate) {
+          where.is_private = true;
         } else {
+          where.is_private = false;
+        }
+      } else if (is_private === 'false') {
+        where.is_private = false;
+      } else {
+        if (!canSeePrivate) {
           where.is_private = false;
         }
       }
