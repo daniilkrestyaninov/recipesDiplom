@@ -556,7 +556,7 @@ const admin = {
       // Перед удалением находим авторов, чтобы уведомить их
       const recipes = await Recipe.findAll({ where: { id: { [Op.in]: recipeIds } }, attributes: ['id', 'title', 'user_id'] });
       
-      const deleted = await Recipe.destroy({ where: { id: { [Op.in]: recipeIds } } });
+      const deleted = await Recipe.destroy({ where: { id: { [Op.in]: recipeIds } }, individualHooks: true });
       await AuditLog.create({ admin_id: req.user.id, action: 'BULK_DELETE_RECIPES', details: { recipeIds } });
 
       // Уведомляем авторов

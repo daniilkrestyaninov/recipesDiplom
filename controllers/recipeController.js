@@ -1,6 +1,6 @@
 const { Recipe, User, Ingredient, RecipeIngredient, RecipeCategory,
   Step, NationalKitchen, Category, Celebration, TypeCooking, Like,
-  Subscription, PersonalNote, CookedRecipe, Comment, Unit, Notification, sequelize } = require('../models');
+  Subscription, PersonalNote, CookedRecipe, Comment, Unit, Notification, Favorite, sequelize } = require('../models');
 const { Op, fn, col } = require('sequelize');
 const geminiService = require('../services/geminiService');
 
@@ -129,11 +129,7 @@ const rc = {
       if (user_id) where.user_id = user_id;
 
       // По умолчанию для общей ленты показываем только публичные
-      const canSeePrivate = req.user && (
-        (user_id && Number(user_id) === req.user.id) ||
-        req.user.role === 'Admin' ||
-        req.user.role === 'Moderator'
-      );
+      const canSeePrivate = req.user && user_id && Number(user_id) === Number(req.user.id);
 
       if (is_private === 'true') {
         if (canSeePrivate) {
@@ -281,6 +277,14 @@ const rc = {
     try {
       const r = await Recipe.findByPk(req.params.id, { include: getFullInclude() });
       if (!r) return res.status(404).json({ message: 'Рецепт не найден' });
+
+      // Если рецепт приватный, показываем только автору
+      if (r.is_private) {
+        const isOwner = req.user && Number(req.user.id) === Number(r.user_id);
+        if (!isOwner) {
+          return res.status(403).json({ message: 'Доступ ограничен (это приватный рецепт)' });
+        }
+      }
 
       // Если автор заблокирован, показываем только ему самому или админам
       const author = await User.findByPk(r.user_id);
@@ -747,8 +751,15 @@ const rc = {
       });
       const likedRecipeIds = userLikes.map(l => l.recipe_id);
 
-      // Добавляем лайкнутые рецепты в список исключений (чтобы не рекомендовать то, что уже оценено)
-      const allExcludedIds = [...new Set([...excludedIdsArray, ...likedRecipeIds])];
+      // Получаем избранные рецепты пользователя
+      const userFavorites = await Favorite.findAll({
+        where: { user_id: userId },
+        attributes: ['recipe_id']
+      });
+      const favoriteRecipeIds = userFavorites.map(f => f.recipe_id);
+
+      // Добавляем лайкнутые и избранные рецепты в список исключений (чтобы не рекомендовать то, что уже оценено или добавлено в избранное)
+      const allExcludedIds = [...new Set([...excludedIdsArray, ...likedRecipeIds, ...favoriteRecipeIds])];
 
       let catIds = [];
       if (likedRecipeIds.length > 0) {

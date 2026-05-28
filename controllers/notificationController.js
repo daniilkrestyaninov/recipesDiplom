@@ -32,11 +32,13 @@ const notificationController = {
         if (plain.Actor) {
           const roleName = (plain.Actor.Role?.name || 'user').toLowerCase();
           plain.Actor.role = roleName;
-          if (roleName === 'admin' || roleName === 'moderator') {
-            // Mask the actor details completely!
+          if ((roleName === 'admin' || roleName === 'moderator') && plain.type === 'SYSTEM') {
+            // Mask the actor details completely for moderator/admin actions (SYSTEM type)
             plain.Actor.username = roleName === 'admin' ? 'admin' : 'moderator';
             plain.Actor.name = roleName === 'admin' ? 'Администратор' : 'Модератор';
             plain.Actor.avatar_url = null;
+            plain.Actor.id = null;
+            plain.actor_id = null;
           }
         }
         return plain;

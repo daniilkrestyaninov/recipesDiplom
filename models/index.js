@@ -120,14 +120,14 @@ Favorite.belongsTo(User, { foreignKey: 'user_id' });
 Favorite.belongsTo(Recipe, { foreignKey: 'recipe_id' });
 
 // ── Comments ─────────────────────────────────────────────────
-Recipe.hasMany(Comment, { foreignKey: 'recipe_id', as: 'Comments' });
+Recipe.hasMany(Comment, { foreignKey: 'recipe_id', as: 'Comments', onDelete: 'CASCADE', hooks: true });
 User.hasMany(Comment, { foreignKey: 'user_id' });
 Comment.belongsTo(User, { foreignKey: 'user_id', as: 'Author' });
-Comment.belongsTo(Recipe, { foreignKey: 'recipe_id' });
-Comment.hasMany(Comment, { foreignKey: 'parent_comment_id', as: 'Replies' });
-Comment.belongsTo(Comment, { foreignKey: 'parent_comment_id', as: 'Parent' });
-Comment.hasMany(CommentLike, { foreignKey: 'comment_id', as: 'Likes' });
-CommentLike.belongsTo(Comment, { foreignKey: 'comment_id' });
+Comment.belongsTo(Recipe, { foreignKey: 'recipe_id', onDelete: 'CASCADE' });
+Comment.hasMany(Comment, { foreignKey: 'parent_comment_id', as: 'Replies', onDelete: 'CASCADE', hooks: true });
+Comment.belongsTo(Comment, { foreignKey: 'parent_comment_id', as: 'Parent', onDelete: 'CASCADE' });
+Comment.hasMany(CommentLike, { foreignKey: 'comment_id', as: 'Likes', onDelete: 'CASCADE', hooks: true });
+CommentLike.belongsTo(Comment, { foreignKey: 'comment_id', onDelete: 'CASCADE' });
 CommentLike.belongsTo(User, { foreignKey: 'user_id' });
 User.hasMany(CommentLike, { foreignKey: 'user_id' });
 
@@ -161,6 +161,54 @@ Notification.belongsTo(User, { foreignKey: 'user_id', as: 'User' });
 Notification.belongsTo(User, { foreignKey: 'actor_id', as: 'Actor' });
 Notification.belongsTo(Recipe, { foreignKey: 'recipe_id', as: 'Recipe' });
 Notification.belongsTo(Comment, { foreignKey: 'comment_id', as: 'Comment' });
+// ── beforeDestroy Hooks for Cascading Deletions ───────────────
+const { Op } = require('sequelize');
+
+Recipe.beforeDestroy(async (recipe, options) => {
+  const comments = await Comment.findAll({
+    where: { recipe_id: recipe.id },
+    attributes: ['id'],
+    transaction: options.transaction
+  });
+  const commentIds = comments.map(c => c.id);
+  if (commentIds.length > 0) {
+    await CommentLike.destroy({
+      where: { comment_id: { [Op.in]: commentIds } },
+      transaction: options.transaction
+    });
+    await Comment.destroy({
+      where: { recipe_id: recipe.id, parent_comment_id: { [Op.ne]: null } },
+      transaction: options.transaction
+    });
+    await Comment.destroy({
+      where: { recipe_id: recipe.id, parent_comment_id: null },
+      transaction: options.transaction
+    });
+  }
+});
+
+Comment.beforeDestroy(async (comment, options) => {
+  await CommentLike.destroy({
+    where: { comment_id: comment.id },
+    transaction: options.transaction
+  });
+  const replies = await Comment.findAll({
+    where: { parent_comment_id: comment.id },
+    attributes: ['id'],
+    transaction: options.transaction
+  });
+  const replyIds = replies.map(r => r.id);
+  if (replyIds.length > 0) {
+    await CommentLike.destroy({
+      where: { comment_id: { [Op.in]: replyIds } },
+      transaction: options.transaction
+    });
+    await Comment.destroy({
+      where: { parent_comment_id: comment.id },
+      transaction: options.transaction
+    });
+  }
+});
 
 module.exports = {
   sequelize,

@@ -70,6 +70,10 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs, {
 }));
 
 // ── Роуты ────────────────────────────────────────────────────
+const maybeAuth = require('./middleware/maybeAuth');
+const rc = require('./controllers/recipeController');
+app.get('/menu-of-week', maybeAuth, rc.getMenuOfWeek);
+
 app.use('/auth', require('./routes/authRoutes'));
 app.use('/users', require('./routes/userRoutes'));
 app.use('/recipes', require('./routes/recipeRoutes'));
